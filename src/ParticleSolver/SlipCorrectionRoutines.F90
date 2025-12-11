@@ -46,9 +46,9 @@ subroutine InitSlipCorrectionData
     ! Check if the solver path ends with slash. Correspondingly update the path to slip correction data
     nlen = len_trim(datapath)
     if (datapath(nlen:nlen).eq.'/') then
-        datafile = trim(datapath)//"data/slip_correction.dat"
+        datafile = trim(datapath)//"slip_correction.dat"
     else
-        datafile = trim(datapath)//"/data/slip_correction.dat"
+        datafile = trim(datapath)//"/slip_correction.dat"
     end if
     ! Check that the data file exists
     inquire(file=datafile, exist=exists)

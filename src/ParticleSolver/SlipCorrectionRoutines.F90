@@ -34,27 +34,27 @@ subroutine InitSlipCorrectionData
     integer             :: istt,nlen
     integer             :: ierror,nlines
     integer             :: indl(5)
-    character(len=500)  :: afidpath,datapath
+    character(len=500)  :: datapath,datafile
     real                :: valc(8)
     
     ! Get the path variable for the solver source
-    call get_environment_variable("AFID_PATH",value=afidpath,status=istt,trim_name=.true.)
+    call get_environment_variable("AFID_DATA",value=datapath,status=istt,trim_name=.true.)
     if (istt.ne.0) then
-        if (ismaster) write (6,*) 'Error: Environment variable AFID_PATH not set or not found'
+        if (ismaster) write (6,*) 'Error: Environment variable AFID_DATA not set or not found'
         call MpiAbort
     end if
     ! Check if the solver path ends with slash. Correspondingly update the path to slip correction data
-    nlen = len_trim(afidpath)
-    if (afidpath(nlen:nlen).eq.'/') then
-        datapath = trim(afidpath)//"data/slip_correction.dat"
+    nlen = len_trim(datapath)
+    if (datapath(nlen:nlen).eq.'/') then
+        datafile = trim(datapath)//"slip_correction.dat"
     else
-        datapath = trim(afidpath)//"/data/slip_correction.dat"
+        datafile = trim(datapath)//"/slip_correction.dat"
     end if
     ! Check that the data file exists
-    inquire(file=datapath, exist=exists)
+    inquire(file=datafile, exist=exists)
     if (exists) then
         !! Open the file
-        open(99, file=trim(datapath))
+        open(99, file=trim(datafile))
         !! Read the size of the slip correction data aspect ratios
         nlines = 1
         ierror = 0
@@ -104,7 +104,7 @@ subroutine InitSlipCorrectionData
         close(99)
         !! If all required data has not been read, abort as the data may be incomplete/corrupted/incorrect/incompatible 
         if (nlines.ne.(num_aspc*num_aspc*num_aspc*num_reyn)) then
-            if (ismaster) write (6,*) 'Error: Slip correction data not incomplete/corrupted at ',datapath
+            if (ismaster) write (6,*) 'Error: Slip correction data incomplete/corrupted at ',datafile
             call MpiAbort
         end if
     else

@@ -317,15 +317,15 @@ subroutine CalcApplyParticleDrag(p)
     real                                :: pvol,pcfd
 
     ! Compute interpolation coefficients
-    call CalcTrilinearInterpolationCoefficients(p%grm_idx,p%grc_idx,p%lpp_pos,cffm,cffc)
+    call CalcTrilinearInterpolationCoefficients(p,cffm,cffc)
 
     ! Compute slip velocity
     !! Initialize slip velocity to zero
     slip(:) = 0.0
     !! Apply trilinear interpolation with previously calculated coefficients to get fluid velocity
-    call ApplyTrilinearInterpolation(p%grm_idx,p%grc_idx,cffm,cffc,'x',1,vx,slip(1))
-    call ApplyTrilinearInterpolation(p%grm_idx,p%grc_idx,cffm,cffc,'y',1,vy,slip(2))
-    call ApplyTrilinearInterpolation(p%grm_idx,p%grc_idx,cffm,cffc,'z',1,vz,slip(3))
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'x',1,vx,slip(1))
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'y',1,vy,slip(2))
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'z',1,vz,slip(3))
 
     !! If slip correction is enabled, correct the slip velocity to account for self-induced velocity
     if (lpp_scor) then
@@ -333,9 +333,9 @@ subroutine CalcApplyParticleDrag(p)
         !!! Initialize curvatures to zero
         curv(:) = 0.0
         !!! Compute the curvature at the particle using trilinear interpolation
-        call ApplyTrilinearInterpolation(p%grm_idx,p%grc_idx,cffm,cffc,'x',1,lpp_d2vx,curv(1))
-        call ApplyTrilinearInterpolation(p%grm_idx,p%grc_idx,cffm,cffc,'y',1,lpp_d2vy,curv(2))
-        call ApplyTrilinearInterpolation(p%grm_idx,p%grc_idx,cffm,cffc,'z',1,lpp_d2vz,curv(3))
+        call ApplyTrilinearInterpolation(p,cffm,cffc,'x',1,lpp_d2vx,curv(1))
+        call ApplyTrilinearInterpolation(p,cffm,cffc,'y',1,lpp_d2vy,curv(2))
+        call ApplyTrilinearInterpolation(p,cffm,cffc,'z',1,lpp_d2vz,curv(3))
         !!! Compute the correction coefficient using trilinear interpolation on lookup data array 
         !!! Note: Reynolds number calculated at previous substep is being used to avoid complicated implicit calculation
         call CalcSlipCorrectionCoefficient(p,'x',coef(1))
@@ -361,7 +361,7 @@ subroutine CalcApplyParticleDrag(p)
 
     ! Calculate drag force and acceleration
     !! Compute premultiplied drag coefficient using empirical drag models (Stokes/Schiller-Naumann/Morsi-Alexander)
-    call PremultipliedDragCoefficient(p%lpp_rey,pcfd)
+    call PremultipliedDragCoefficient(p,pcfd)
     !! Compute drag force using premultiplied drag coefficient
     forc(1) = (pi*slip(1)*pcfd*p%lpp_dia)/(8.0*rey)
     forc(2) = (pi*slip(2)*pcfd*p%lpp_dia)/(8.0*rey)
@@ -374,9 +374,9 @@ subroutine CalcApplyParticleDrag(p)
 
     ! Apply opposite drag force on fluid (from Newton's third law)
     !! Apply trilinear interpolation with previously calculated coefficients to get body forces
-    call ApplyTrilinearInterpolation(p%grm_idx,p%grc_idx,cffm,cffc,'x',-1,lpp_bdfx,(l2e_mult*forc(1)))
-    call ApplyTrilinearInterpolation(p%grm_idx,p%grc_idx,cffm,cffc,'y',-1,lpp_bdfy,(l2e_mult*forc(2)))
-    call ApplyTrilinearInterpolation(p%grm_idx,p%grc_idx,cffm,cffc,'z',-1,lpp_bdfz,(l2e_mult*forc(3)))
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'x',-1,lpp_bdfx,(l2e_mult*forc(1)))
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'y',-1,lpp_bdfy,(l2e_mult*forc(2)))
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'z',-1,lpp_bdfz,(l2e_mult*forc(3)))
     
     return
 

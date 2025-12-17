@@ -33,7 +33,7 @@ subroutine InitSlipCorrectionData
     logical             :: exists
     integer             :: istt,nlen
     integer             :: ierror,nlines
-    integer             :: indl(5)
+    integer             :: indl(4)
     character(len=500)  :: datapath,datafile
     real                :: valc(8)
     
@@ -55,6 +55,13 @@ subroutine InitSlipCorrectionData
     if (exists) then
         !! Open the file
         open(99, file=trim(datafile))
+        !! Read the size of the slip correction data relative particle diameters
+        nlines = 1
+        ierror = 0
+        do while ((ierror.ne.iostat_end).and.(nlines.le.1))
+            read(99, *, iostat=ierror) num_rdia
+            if (ierror.eq.0) nlines = nlines + 1
+        end do
         !! Read the size of the slip correction data aspect ratios
         nlines = 1
         ierror = 0
@@ -72,9 +79,17 @@ subroutine InitSlipCorrectionData
         !! Set the fixed number of data values and drag models
         num_data = 8 !!!! (8 coefficients at corners of the cell and 8 rise-time values)
         !! Initialize the slip correction arrays
+        if (.not.allocated(dat_rdia)) allocate(dat_rdia(num_rdia))
         if (.not.allocated(dat_aspc)) allocate(dat_aspc(num_aspc))
         if (.not.allocated(dat_reyn)) allocate(dat_reyn(num_reyn))
-        if (.not.allocated(dat_coef)) allocate(dat_coef(num_aspc,num_aspc,num_aspc,num_reyn,num_data))
+        if (.not.allocated(dat_coef)) allocate(dat_coef(num_rdia,num_aspc,num_aspc,num_reyn,num_data))
+        !! Read the relative particle diameters of the slip correction data
+        nlines = 1
+        ierror = 0
+        do while ((ierror.ne.iostat_end).and.(nlines.le.num_rdia))
+            read(99, *, iostat=ierror) dat_rdia(nlines)
+            if (ierror.eq.0) nlines = nlines + 1
+        end do
         !! Read the aspect ratios of the slip correction data
         nlines = 1
         ierror = 0
@@ -89,21 +104,21 @@ subroutine InitSlipCorrectionData
             read(99, *, iostat=ierror) dat_reyn(nlines)
             if (ierror.eq.0) nlines = nlines + 1
         end do
-        !! Read the slip correction coefficients and rise time
+        !! Read the slip correction coefficients
         ierror = 0
         nlines = 0
         do while (ierror.ne.iostat_end)
             read(99, *, iostat=ierror) indl,valc
-            !!! Check for valid data for the given drag model
-            if ((ierror.eq.0).and.(indl(1).eq.lpp_dmod)) then
-                dat_coef(indl(2),indl(3),indl(4),indl(5),1:8) = valc
+            !!! Check for valid data
+            if (ierror.eq.0) then
+                dat_coef(indl(1),indl(2),indl(3),indl(4),1:8) = valc
                 nlines = nlines + 1
             end if
         end do
         !! Close file
         close(99)
         !! If all required data has not been read, abort as the data may be incomplete/corrupted/incorrect/incompatible 
-        if (nlines.ne.(num_aspc*num_aspc*num_aspc*num_reyn)) then
+        if (nlines.ne.(num_rdia*num_aspc*num_aspc*num_reyn)) then
             if (ismaster) write (6,*) 'Error: Slip correction data incomplete/corrupted at ',datafile
             call MpiAbort
         end if
@@ -128,19 +143,25 @@ subroutine CalcSlipCorrectionCoefficient(p,grid,coef)
 
     integer                             :: i,j,k,l,m
     integer                             :: icrd(4)
-    real                                :: aspc(3)
     real                                :: aspf(3)
+    real                                :: aspc(2:3)
+    real                                :: rdia
     real                                :: fcrd(4,0:1)
     real                                :: cval,mtau
     real                                :: aspm(8)
-    real                                :: reyn
+    real                                :: pdia,prey,pcfd
+
+    ! Compute equivalent diameter and reynolds number for a particle exerting the same force under Stokes drag coefficient
+    call PremultipliedDragCoefficient(p,pcfd)
+    pdia = p%lpp_dia*(l2e_mult*pcfd/24.0)
+    prey = p%lpp_rey*(pdia/p%lpp_dia)
 
     ! Compute the grid interpolation multipliers/coefficients depending on which face the velocity component lies on
     if (grid.eq.'x') then
 
-        aspc(1) = p%lpp_dia/(xc(p%grc_idx(1)+1) - xc(p%grc_idx(1)))
-        aspc(2) = p%lpp_dia/(ym(p%grm_idx(2)+1) - ym(p%grm_idx(2)))
-        aspc(3) = p%lpp_dia/(zm(p%grm_idx(3)+1) - zm(p%grm_idx(3)))
+        rdia    = pdia/(xc(p%grc_idx(1)+1) - xc(p%grc_idx(1)))
+        aspc(2) = (ym(p%grm_idx(2)+1) - ym(p%grm_idx(2)))/(xc(p%grc_idx(1)+1) - xc(p%grc_idx(1)))
+        aspc(3) = (zm(p%grm_idx(3)+1) - zm(p%grm_idx(3)))/(xc(p%grc_idx(1)+1) - xc(p%grc_idx(1)))
 
         aspf(1) = abs(p%lpp_pos(1) - (0.5*(xc(p%grc_idx(1)+1) + xc(p%grc_idx(1)))))/(0.5*(xc(p%grc_idx(1)+1) - xc(p%grc_idx(1))))
         aspf(2) = abs(p%lpp_pos(2) - (0.5*(ym(p%grm_idx(2)+1) + ym(p%grm_idx(2)))))/(0.5*(ym(p%grm_idx(2)+1) - ym(p%grm_idx(2))))
@@ -148,9 +169,9 @@ subroutine CalcSlipCorrectionCoefficient(p,grid,coef)
 
     else if (grid.eq.'y') then
 
-        aspc(1) = p%lpp_dia/(yc(p%grc_idx(2)+1) - yc(p%grc_idx(2)))
-        aspc(2) = p%lpp_dia/(zm(p%grm_idx(3)+1) - zm(p%grm_idx(3)))
-        aspc(3) = p%lpp_dia/(xm(p%grm_idx(1)+1) - xm(p%grm_idx(1)))
+        rdia    = pdia/(yc(p%grc_idx(2)+1) - yc(p%grc_idx(2)))
+        aspc(2) = (zm(p%grm_idx(3)+1) - zm(p%grm_idx(3)))/(yc(p%grc_idx(2)+1) - yc(p%grc_idx(2)))
+        aspc(3) = (xm(p%grm_idx(1)+1) - xm(p%grm_idx(1)))/(yc(p%grc_idx(2)+1) - yc(p%grc_idx(2)))
 
         aspf(1) = abs(p%lpp_pos(2) - (0.5*(yc(p%grc_idx(2)+1) + yc(p%grc_idx(2)))))/(0.5*(yc(p%grc_idx(2)+1) - yc(p%grc_idx(2))))
         aspf(2) = abs(p%lpp_pos(3) - (0.5*(zm(p%grm_idx(3)+1) + zm(p%grm_idx(3)))))/(0.5*(zm(p%grm_idx(3)+1) - zm(p%grm_idx(3))))
@@ -158,9 +179,9 @@ subroutine CalcSlipCorrectionCoefficient(p,grid,coef)
 
     else if (grid.eq.'z') then
 
-        aspc(1) = p%lpp_dia/(zc(p%grc_idx(3)+1) - zc(p%grc_idx(3)))
-        aspc(2) = p%lpp_dia/(xm(p%grm_idx(1)+1) - xm(p%grm_idx(1)))
-        aspc(3) = p%lpp_dia/(ym(p%grm_idx(2)+1) - ym(p%grm_idx(2)))
+        rdia    = pdia/(zc(p%grc_idx(3)+1) - zc(p%grc_idx(3)))
+        aspc(2) = (xm(p%grm_idx(1)+1) - xm(p%grm_idx(1)))/(zc(p%grc_idx(3)+1) - zc(p%grc_idx(3)))
+        aspc(3) = (ym(p%grm_idx(2)+1) - ym(p%grm_idx(2)))/(zc(p%grc_idx(3)+1) - zc(p%grc_idx(3)))
 
         aspf(1) = abs(p%lpp_pos(3) - (0.5*(zc(p%grc_idx(3)+1) + zc(p%grc_idx(3)))))/(0.5*(zc(p%grc_idx(3)+1) - zc(p%grc_idx(3))))
         aspf(2) = abs(p%lpp_pos(1) - (0.5*(xm(p%grm_idx(1)+1) + xm(p%grm_idx(1)))))/(0.5*(xm(p%grm_idx(1)+1) - xm(p%grm_idx(1))))
@@ -178,8 +199,27 @@ subroutine CalcSlipCorrectionCoefficient(p,grid,coef)
     aspm(7) = aspf(1)*(1.0 - aspf(2))*(1.0 - aspf(3))
     aspm(8) = (1.0 - aspf(1))*(1.0 - aspf(2))*(1.0 - aspf(3))
 
-    ! Find out the aspect ratio indices encompassing the current aspect ratio of the particle in its cell
-    do i = 1,3
+    ! Check if relative particle diameter lies within data coordinates
+    if (rdia.lt.dat_rdia(1)) then
+        !! Extrapolate on lower end (hopefully this doesn't change much)
+        !! As particle relative diameter becomes smaller, the force applied also goes to zero
+        icrd(1) = 1
+    else if (rdia.ge.dat_rdia(num_rdia)) then
+        !! Extrapolate on higher end
+        icrd(1) = num_rdia-1
+    else
+        !! Find the interval for interpolation
+        do i = 1,num_rdia-1
+            icrd(1) = i
+            if ((dat_rdia(i).le.rdia).and.(dat_rdia(i+1).gt.rdia)) exit
+        end do
+    endif
+    ! Calculate the multipliers/coefficients for Reynolds number interpolation
+    fcrd(1,0) = (dat_rdia(icrd(1)+1) - rdia)/(dat_rdia(icrd(1)+1) - dat_rdia(icrd(1)))
+    fcrd(1,1) = (rdia  -  dat_rdia(icrd(1)))/(dat_rdia(icrd(1)+1) - dat_rdia(icrd(1)))
+
+    ! Find out the aspect ratio indices encompassing the aspect ratio of the current cell of the particle
+    do i = 2,3
         !! Check if aspect ratio lies within data coordinates
         if (aspc(i).lt.dat_aspc(1)) then
             !!! Extrapolate on lower end
@@ -199,21 +239,24 @@ subroutine CalcSlipCorrectionCoefficient(p,grid,coef)
         fcrd(i,1) = (aspc(i)  -  dat_aspc(icrd(i)))/(dat_aspc(icrd(i)+1) - dat_aspc(icrd(i)))
     end do
 
-    ! Check if aspect ratio lies within data coordinates
-    ! Reynolds number can't be negative and minimum bound is zero (Stokes flow)
-    if (p%lpp_rey.ge.dat_reyn(num_reyn)) then
+    ! Check if Reynolds number lies within data coordinates
+    if (prey.lt.dat_reyn(1)) then
+        !! Extrapolate on lower end (hopefully this doesn't change much)
+        !! As particle Reynolds number becomes smaller, it approaches Stokes flow
+        icrd(4) = 1
+    else if (prey.ge.dat_reyn(num_reyn)) then
         !! Extrapolate on higher end
         icrd(4) = num_reyn-1
     else
         !! Find the interval for interpolation
         do i = 1,num_reyn-1
             icrd(4) = i
-            if ((dat_reyn(i).le.p%lpp_rey).and.(dat_reyn(i+1).gt.p%lpp_rey)) exit
+            if ((dat_reyn(i).le.prey).and.(dat_reyn(i+1).gt.prey)) exit
         end do
     endif
     ! Calculate the multipliers/coefficients for Reynolds number interpolation
-    fcrd(4,0) = (dat_reyn(icrd(4)+1) - p%lpp_rey)/(dat_reyn(icrd(4)+1) - dat_reyn(icrd(4)))
-    fcrd(4,1) = (p%lpp_rey  -  dat_reyn(icrd(4)))/(dat_reyn(icrd(4)+1) - dat_reyn(icrd(4)))
+    fcrd(4,0) = (dat_reyn(icrd(4)+1) - prey)/(dat_reyn(icrd(4)+1) - dat_reyn(icrd(4)))
+    fcrd(4,1) = (prey  -  dat_reyn(icrd(4)))/(dat_reyn(icrd(4)+1) - dat_reyn(icrd(4)))
 
     ! Calculate the final slip correction coefficient through multilinear interpolation
     coef = 0.0
@@ -230,6 +273,7 @@ subroutine CalcSlipCorrectionCoefficient(p,grid,coef)
         end do
     end do
 
+    ! Prevent negative coefficients just in case something went wrong with interpolation
     coef = max(coef,0.0)
 
 end subroutine CalcSlipCorrectionCoefficient

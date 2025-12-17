@@ -60,61 +60,60 @@ subroutine GetLocationCellIndex(gpos,grid,g_st,g_en,indx)
 
 end subroutine GetLocationCellIndex
 
-subroutine CalcTrilinearInterpolationCoefficients(indm,indc,ipos,icfm,icfc)
+subroutine CalcTrilinearInterpolationCoefficients(p,icfm,icfc)
 
     use param, only: xc,xm,yc,ym,zc,zm
+    use lagrangian_point_particle, only: particle_data
 
     implicit none
 
-    integer, intent(in)     :: indm(3)
-    integer, intent(in)     :: indc(3)
-    real,    intent(in)     :: ipos(3)
-    real,    intent(out)    :: icfm(3)
-    real,    intent(out)    :: icfc(3)
+    type(particle_data), intent(in)     :: p
+    real,                intent(out)    :: icfm(3)
+    real,                intent(out)    :: icfc(3)
 
-    icfc(1) = (xc(indc(1)+1) - ipos(1))/(xc(indc(1)+1) - xc(indc(1)))
-    icfm(1) = (xm(indm(1)+1) - ipos(1))/(xm(indm(1)+1) - xm(indm(1)))
+    icfc(1) = (xc(p%grc_idx(1)+1) - p%lpp_pos(1))/(xc(p%grc_idx(1)+1) - xc(p%grc_idx(1)))
+    icfm(1) = (xm(p%grm_idx(1)+1) - p%lpp_pos(1))/(xm(p%grm_idx(1)+1) - xm(p%grm_idx(1)))
 
-    icfc(2) = (yc(indc(2)+1) - ipos(2))/(yc(indc(2)+1) - yc(indc(2)))
-    icfm(2) = (ym(indm(2)+1) - ipos(2))/(ym(indm(2)+1) - ym(indm(2)))
+    icfc(2) = (yc(p%grc_idx(2)+1) - p%lpp_pos(2))/(yc(p%grc_idx(2)+1) - yc(p%grc_idx(2)))
+    icfm(2) = (ym(p%grm_idx(2)+1) - p%lpp_pos(2))/(ym(p%grm_idx(2)+1) - ym(p%grm_idx(2)))
 
-    icfc(3) = (zc(indc(3)+1) - ipos(3))/(zc(indc(3)+1) - zc(indc(3)))
-    icfm(3) = (zm(indm(3)+1) - ipos(3))/(zm(indm(3)+1) - zm(indm(3)))
+    icfc(3) = (zc(p%grc_idx(3)+1) - p%lpp_pos(3))/(zc(p%grc_idx(3)+1) - zc(p%grc_idx(3)))
+    icfm(3) = (zm(p%grm_idx(3)+1) - p%lpp_pos(3))/(zm(p%grm_idx(3)+1) - zm(p%grm_idx(3)))
 
 end subroutine CalcTrilinearInterpolationCoefficients
 
-subroutine ApplyTrilinearInterpolation(indm,indc,icfm,icfc,grid,idir,qarr,qval)
+subroutine ApplyTrilinearInterpolation(p,icfm,icfc,grid,idir,qarr,qval)
 
     use decomp_2d, only: xstart,xend
     use param, only: lvlhalo
+    use lagrangian_point_particle, only: particle_data
 
     implicit none
 
-    integer, intent(in)     :: indm(3)
-    integer, intent(in)     :: indc(3)
-    real, intent(in)        :: icfm(3)
-    real, intent(in)        :: icfc(3)
-    character, intent(in)   :: grid
-    integer, intent(in)     :: idir
-    real, intent(inout)     :: qarr(xstart(1)-lvlhalo:xend(1)+lvlhalo,xstart(2)-lvlhalo:xend(2)+lvlhalo,xstart(3)-lvlhalo:xend(3)+lvlhalo)
-    real, intent(inout)     :: qval
+    type(particle_data), intent(in)     :: p
+    real,                intent(in)     :: icfm(3)
+    real,                intent(in)     :: icfc(3)
+    character,           intent(in)     :: grid
+    integer,             intent(in)     :: idir
+    real,                intent(inout)  :: qarr(xstart(1)-lvlhalo:xend(1)+lvlhalo,xstart(2)-lvlhalo:xend(2)+lvlhalo,xstart(3)-lvlhalo:xend(3)+lvlhalo)
+    real,                intent(inout)  :: qval
 
-    character               :: glst(3)
-    integer                 :: i,j,k
-    integer                 :: ival
-    integer                 :: indq(3)
-    real                    :: coef(3,0:1)
+    character                           :: glst(3)
+    integer                             :: i,j,k
+    integer                             :: ival
+    integer                             :: indq(3)
+    real                                :: coef(3,0:1)
 
     glst = (/'x','y','z'/)
 
     do ival = 1,3
 
         if (grid.eq.glst(ival)) then
-            indq(ival)   = indc(ival)
+            indq(ival)   = p%grc_idx(ival)
             coef(ival,0) = icfc(ival)
             coef(ival,1) = 1.0 - icfc(ival)
         else
-            indq(ival)   = indm(ival)
+            indq(ival)   = p%grm_idx(ival)
             coef(ival,0) = icfm(ival)
             coef(ival,1) = 1.0 - icfm(ival)
         end if

@@ -40,6 +40,7 @@ subroutine FinalizeParticleSolver !{DONE}!
     if (allocated(lpp_d2vy)) deallocate(lpp_d2vy)
     if (allocated(lpp_d2vz)) deallocate(lpp_d2vz)
 
+    if (allocated(dat_rdia)) deallocate(dat_rdia)
     if (allocated(dat_aspc)) deallocate(dat_aspc)
     if (allocated(dat_reyn)) deallocate(dat_reyn)
     if (allocated(dat_coef)) deallocate(dat_coef)

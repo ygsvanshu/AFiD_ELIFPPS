@@ -86,22 +86,6 @@ subroutine SpawnNewParticles
             !!! Initialize particle diameter and density
             lpp_list(indx)%lpp_dia    = src_list(nsrc)%src_dia
             lpp_list(indx)%lpp_den    = src_list(nsrc)%src_den
-            !!! Initialize the particle reynolds number using the slip (no slip correction needed at initialization)
-            !!!! Compute interpolation coefficients
-            call CalcTrilinearInterpolationCoefficients(src_list(nsrc)%grm_idx,src_list(nsrc)%grc_idx,src_list(nsrc)%src_pos,cffm,cffc)
-            slvx = 0.0
-            slvy = 0.0
-            slvz = 0.0
-            !!!! Apply trilinear interpolation with previously calculated coefficients to get fluid velocity
-            call ApplyTrilinearInterpolation(src_list(nsrc)%grm_idx,src_list(nsrc)%grc_idx,cffm,cffc,'x',1,vx,slvx)
-            call ApplyTrilinearInterpolation(src_list(nsrc)%grm_idx,src_list(nsrc)%grc_idx,cffm,cffc,'y',1,vy,slvy)
-            call ApplyTrilinearInterpolation(src_list(nsrc)%grm_idx,src_list(nsrc)%grc_idx,cffm,cffc,'z',1,vz,slvz)
-            !!!! Subtract fluid velocity from source velocity to get slip velocity
-            slvx = src_list(nsrc)%src_vel(1) - slvx
-            slvy = src_list(nsrc)%src_vel(2) - slvy
-            slvz = src_list(nsrc)%src_vel(3) - slvz
-            slip = sqrt((slvx**2.0) + (slvy**2.0) + (slvz**2.0))
-            lpp_list(indx)%lpp_rey    = lpp_list(indx)%lpp_dia*rey*slip
             !!! Initialize particle position to source position
             lpp_list(indx)%lpp_pos(1) = src_list(nsrc)%src_pos(1)
             lpp_list(indx)%lpp_pos(2) = src_list(nsrc)%src_pos(2) 
@@ -118,6 +102,22 @@ subroutine SpawnNewParticles
             lpp_list(indx)%acc_now(1) = 0.0
             lpp_list(indx)%acc_now(2) = 0.0
             lpp_list(indx)%acc_now(3) = 0.0
+            !!! Initialize the particle reynolds number using the slip (no slip correction needed at initialization)
+            !!!! Compute interpolation coefficients
+            call CalcTrilinearInterpolationCoefficients(lpp_list(indx),cffm,cffc)
+            slvx = 0.0
+            slvy = 0.0
+            slvz = 0.0
+            !!!! Apply trilinear interpolation with previously calculated coefficients to get fluid velocity
+            call ApplyTrilinearInterpolation(lpp_list(indx),cffm,cffc,'x',1,vx,slvx)
+            call ApplyTrilinearInterpolation(lpp_list(indx),cffm,cffc,'y',1,vy,slvy)
+            call ApplyTrilinearInterpolation(lpp_list(indx),cffm,cffc,'z',1,vz,slvz)
+            !!!! Subtract fluid velocity from source velocity to get slip velocity
+            slvx = src_list(nsrc)%src_vel(1) - slvx
+            slvy = src_list(nsrc)%src_vel(2) - slvy
+            slvz = src_list(nsrc)%src_vel(3) - slvz
+            slip = sqrt((slvx**2.0) + (slvy**2.0) + (slvz**2.0))
+            lpp_list(indx)%lpp_rey    = lpp_list(indx)%lpp_dia*rey*slip
             !!! Frequency is a non-zero positive number, so update the next spawn time instant
             src_list(nsrc)%src_sta = src_list(nsrc)%src_sta + (1.0/src_list(nsrc)%src_frq)
 

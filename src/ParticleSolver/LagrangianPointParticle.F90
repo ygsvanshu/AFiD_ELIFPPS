@@ -57,6 +57,7 @@ module lagrangian_point_particle
 
     integer, parameter                                  :: STOKES  =  0 ! Stokes drag model (for Reynolds number << 1)
     integer, parameter                                  :: SCHNAU  =  1 ! Schiller-Naumann drag model (for All Reynolds numbers)
+    integer, parameter                                  :: MORALE  =  2 ! Morsi-Alexander drag model (for All Reynolds numbers)
 
     ! Global input parameters
 
@@ -139,9 +140,11 @@ module lagrangian_point_particle
 
     ! Slip correction data arrays
 
-    integer                                             :: num_aspc     ! Number of data points for aspect ratio (ratio of particle diameter to grid-cell dimension)
+    integer                                             :: num_rdia     ! Number of data points for relative particle diameter
+    integer                                             :: num_aspc     ! Number of data points for aspect ratio of grid cell dimensions perpendicular and parallel to slip
     integer                                             :: num_reyn     ! Number of data points for particle Reynolds number
-    integer                                             :: num_data     ! Number of data points for the slip correction coefficients and timescales
+    integer                                             :: num_data     ! Number of data points for the slip correction coefficients
+    real, allocatable, dimension(:)                     :: dat_rdia     ! Slip correction data coordinates for relative particle diameter
     real, allocatable, dimension(:)                     :: dat_aspc     ! Slip correction data coordinates for aspect ratio
     real, allocatable, dimension(:)                     :: dat_reyn     ! Slip correction data coordinates for Reynolds number
     real, allocatable, dimension(:,:,:,:,:)             :: dat_coef     ! Slip correction coefficients

@@ -11,7 +11,7 @@
 subroutine ParticleMarchSubstep
 
     use mpih
-    use param, only: ns,lvlhalo
+    use param, only: ns,time
     use lagrangian_point_particle
 
     implicit none
@@ -63,7 +63,8 @@ subroutine ParticleMarchSubstep
     end do
 
     ! If there are exited particles in the current substep, save the exit events
-    if (sub_exit.gt.0) then
+    ! Only if saving particle exit events is enabled and flow time is greater than particle exit event save start time
+    if ((pex_save).and.(time.ge.pex_ssta).and.(sub_exit.gt.0)) then
         !! Increment the total number of exited particles
         lpp_exit = lpp_exit + sub_exit
         !! Check there's enough allocated space to write exit data and extend if needed (with one space extra to be safe)
@@ -87,5 +88,6 @@ subroutine ParticleMarchSubstep
     call UpdateHaloForces(lpp_bdfz)
     
     return
+
 
 end subroutine ParticleMarchSubstep

@@ -40,7 +40,7 @@ subroutine QuitRoutine(tin,normalexit,errorcode)
             call MPI_ABORT(MPI_COMM_WORLD,1)
         end if
 
-        call FinalizeParticleSolver
+        if (particle) call FinalizeParticleSolver
         call DeallocateVariables
         call DeallocateFFTArrays
         call HdfClose

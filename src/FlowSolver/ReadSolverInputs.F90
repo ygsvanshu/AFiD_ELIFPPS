@@ -68,8 +68,8 @@ subroutine ReadSolverInputs
             read (ss(3),*) zlen
 
         else if (line(1:3) == '203') then
-            !###### STRETCHING DIRECTION ######
-            call scan_string(line,1,ss,narg)
+            !###### GRID STRETCHING DIRECTION, TYPE, AND PARAMETER ######
+            call scan_string(line,3,ss,narg)
             stringdummy1 = ss(1)
             if ('n' == stringdummy1) then
                 straxs = 0
@@ -84,14 +84,10 @@ subroutine ReadSolverInputs
                 write (*,*) "       ===> valid values 'n', 'x', 'y', or 'z'  "
                 call stop_config
             end if
+            read (ss(2),*) strtyp
+            read (ss(3),*) strval
 
         else if (line(1:3) == '204') then
-            !###### STRETCHING TYPE AND PARAMETER ######
-            call scan_string(line,2,ss,narg)
-            read (ss(1),*) strtyp
-            read (ss(2),*) strval
-
-        else if (line(1:3) == '205') then
             !###### PERIODICITY ######
             call scan_string(line,3,ss,narg)
             stringdummy1 = ss(1)

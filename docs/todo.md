@@ -1,0 +1,22 @@
+# List of things to do
+
+- [ ] Maybe add a Poiseuille initial condition?
+- [ ] Examples
+    - [ ] Lid driven cavity
+    - [ ] Laminar Poiseuille flow
+    - [ ] Turbulent Poiseuille flow
+    - [ ] Laminar Couette flow
+    - [ ] Turbulent Couette flow
+    - [ ] Single particle deceleration 
+        - [ ] Stokes 
+            - [ ] Slip correction on  
+            - [ ] Slip correction off 
+        - [ ] Schiller-Naumann 
+            - [ ] Slip correction on  
+            - [ ] Slip correction off 
+        - [ ] Morsi-Alexander
+            - [ ] Slip correction on  
+            - [ ] Slip correction off 
+    - [ ] Single particle (periodic?) terminal velocity
+- [ ] Add comments for fluid solver part
+- [ ] Add comments for doxygen maybe?

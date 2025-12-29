@@ -90,51 +90,71 @@ subroutine InitMovie
     mnum = 1
     snpm = 1
 
-    if (ismaster) then
+    if (nread) then
 
-        filename = trim("Results/movie_slices_x.h5")
-        inquire(file=filename, exist=exists)
-        if (exists) then
-            dsetname = trim("/runs")
-            call HdfSerialReadIntScalar(filename,dsetname,rnum)
-            mnum = max(mnum,rnum)
-            dsetname = trim("/steps")
-            call HdfSerialReadIntScalar(filename,dsetname,rnum)
-            snpm = max(snpm,rnum)
+        if (ismaster) then
+
+            filename = trim("Results/movie_slices_x.h5")
+            inquire(file=filename, exist=exists)
+            if (exists) then
+                dsetname = trim("/runs")
+                call HdfSerialReadIntScalar(filename,dsetname,rnum)
+                mnum = max(mnum,rnum)
+                dsetname = trim("/steps")
+                call HdfSerialReadIntScalar(filename,dsetname,rnum)
+                snpm = max(snpm,rnum)
+            end if
+            
+            filename = trim("Results/movie_slices_y.h5")
+            inquire(file=filename, exist=exists)
+            if (exists) then
+                filename = filename
+                dsetname = trim("/runs")
+                call HdfSerialReadIntScalar(filename,dsetname,rnum)
+                mnum = max(mnum,rnum)
+                dsetname = trim("/steps")
+                call HdfSerialReadIntScalar(filename,dsetname,rnum)
+                snpm = max(snpm,rnum)
+            end if
+
+            filename = trim("Results/movie_slices_z.h5")
+            inquire(file=filename, exist=exists)
+            if (exists) then
+                filename = filename
+                dsetname = trim("/runs")
+                call HdfSerialReadIntScalar(filename,dsetname,rnum)
+                mnum = max(mnum,rnum)
+                dsetname = trim("/steps")
+                call HdfSerialReadIntScalar(filename,dsetname,rnum)
+                snpm = max(snpm,rnum)
+            end if
+
+            mnum = mnum + 1
+            snpm = snpm + 1
+
         end if
+
+        call MpiBarrier
+        call MpiBcastInt(mnum)
+        call MpiBcastInt(snpm)
         
-        filename = trim("Results/movie_slices_y.h5")
-        inquire(file=filename, exist=exists)
-        if (exists) then
-            filename = filename
-            dsetname = trim("/runs")
-            call HdfSerialReadIntScalar(filename,dsetname,rnum)
-            mnum = max(mnum,rnum)
-            dsetname = trim("/steps")
-            call HdfSerialReadIntScalar(filename,dsetname,rnum)
-            snpm = max(snpm,rnum)
-        end if
+    else
 
-        filename = trim("Results/movie_slices_z.h5")
-        inquire(file=filename, exist=exists)
-        if (exists) then
-            filename = filename
-            dsetname = trim("/runs")
-            call HdfSerialReadIntScalar(filename,dsetname,rnum)
-            mnum = max(mnum,rnum)
-            dsetname = trim("/steps")
-            call HdfSerialReadIntScalar(filename,dsetname,rnum)
-            snpm = max(snpm,rnum)
-        end if
+        if (ismaster) then
 
-        mnum = mnum + 1
-        snpm = snpm + 1
+            filename = trim("Results/movie_slices_x.h5")
+            inquire(file=filename, exist=exists)
+            if (exists) call HdfClean(filename)
+            filename = trim("Results/movie_slices_y.h5")
+            inquire(file=filename, exist=exists)
+            if (exists) call HdfClean(filename)
+            filename = trim("Results/movie_slices_z.h5")
+            inquire(file=filename, exist=exists)
+            if (exists) call HdfClean(filename)
+
+        end if
 
     end if
-
-    call MpiBarrier
-    call MpiBcastInt(mnum)
-    call MpiBcastInt(snpm)
 
     filename = trim("Inputs/movie_slices_x.in")
     inquire(file=filename, exist=exists)

@@ -20,6 +20,7 @@ subroutine PrintParticleCaseInfo
 
     if (lpp_dmod.eq.STOKES) dopt = trim("Stokes")
     if (lpp_dmod.eq.SCHNAU) dopt = trim("Schiller-Naumann")
+    if (lpp_dmod.eq.MORALE) dopt = trim("Morsi-Alexander")
 
     if (lpp_scor) then
         sopt = trim("Enabled")
@@ -57,5 +58,6 @@ subroutine PrintParticleCaseInfo
         write (6,'(A77)') '                                                                             '
 
     end if
+
 
 end subroutine PrintParticleCaseInfo

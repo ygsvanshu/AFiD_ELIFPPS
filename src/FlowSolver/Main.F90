@@ -72,8 +72,6 @@ program AFiD
     if (particle) call InitParticleExitFile
     if (particle.and.lpp_save) call InitParticleHistoryFile
 
-    cvel = limitCFL*max(maxval(dxc),maxval(dyc),maxval(dzc))/dtmax
-
     call PrintCaseInfo
     if (particle) call PrintParticleCaseInfo
 

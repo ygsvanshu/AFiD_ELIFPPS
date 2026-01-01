@@ -13,15 +13,15 @@
 !    The value at the boundary is set by bval. Additional !
 !    information such as coordinates, grid spacing, time, !
 !    and time-step infomration can also be accessed in    !
-!    the subroutines. The variable "time" gives the flow  ! 
+!    the subroutines. The variable "time" gives the flow  !
 !    time at the end of substep, and the product of the   !
 !    variables "al*dt" gives the substep time duration    !
 !    For Vx grid, the coordinates are xc(i), ym(j), zm(k) !
 !    For Vy grid, the coordinates are xm(i), yc(j), zm(k) !
 !    For Vz grid, the coordinates are xm(i), ym(j), zc(k) !
-!    For Vx grid, the spacings are dxm(i), dyc(j), dzc(k) !
-!    For Vy grid, the spacings are dxc(i), dym(j), dzc(k) !
-!    For Vz grid, the spacings are dxc(i), dyc(j), dzm(k) !
+!    For Vx grid, the spacings are dxc(i), dym(j), dzm(k) !
+!    For Vy grid, the spacings are dxm(i), dyc(j), dzm(k) !
+!    For Vz grid, the spacings are dxm(i), dym(j), dzc(k) !
 !                                                         !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -55,7 +55,7 @@ subroutine VxBcXe(j,k,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dxc(nxm)/(al*dt)
 
 end subroutine VxBcXe
 
@@ -87,7 +87,7 @@ subroutine VxBcYe(i,k,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dym(ny)/(al*dt)
 
 end subroutine VxBcYe
 
@@ -103,7 +103,7 @@ subroutine VxBcZs(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dzm(1)/(al*dt)
 
 end subroutine VxBcZs
 
@@ -119,7 +119,7 @@ subroutine VxBcZe(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dzm(nz)/(al*dt)
 
 end subroutine VxBcZe
 
@@ -153,7 +153,7 @@ subroutine VyBcXe(j,k,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dxm(nx)/(al*dt)
 
 end subroutine VyBcXe
 
@@ -185,7 +185,7 @@ subroutine VyBcYe(i,k,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dyc(nym)/(al*dt)
 
 end subroutine VyBcYe
 
@@ -201,7 +201,7 @@ subroutine VyBcZs(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dzm(1)/(al*dt)
 
 end subroutine VyBcZs
 
@@ -217,7 +217,7 @@ subroutine VyBcZe(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dzm(nz)/(al*dt)
 
 end subroutine VyBcZe
 
@@ -251,7 +251,7 @@ subroutine VzBcXe(j,k,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dxm(1)/(al*dt)
 
 end subroutine VzBcXe
 
@@ -283,7 +283,7 @@ subroutine VzBcYe(i,k,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dym(ny)/(al*dt)
 
 end subroutine VzBcYe
 
@@ -299,7 +299,7 @@ subroutine VzBcZs(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dzc(1)/(al*dt)
 
 end subroutine VzBcZs
 
@@ -315,6 +315,6 @@ subroutine VzBcZe(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = 0.0
+    bval = cvel*dzc(nzm)/(al*dt)
 
 end subroutine VzBcZe

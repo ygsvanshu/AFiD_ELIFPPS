@@ -187,6 +187,11 @@ subroutine ReadSolverInputs
             read (ss(1),*) limitVel
 
         else if (line(1:3) == '408') then
+            !###### ADVECTIVE (SOMMERFELD) B.C. WAVE SPEED MULTIPLIER ######
+            call scan_string(line,1,ss,narg)
+            read (ss(1),*) cvel
+
+        else if (line(1:3) == '409') then
             !###### INITIAL PERTURBATION ######
             call scan_string(line,2,ss,narg)
             read (ss(1),*) epsnum

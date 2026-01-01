@@ -13,15 +13,15 @@
 !    The value at the boundary is set by bval. Additional !
 !    information such as coordinates, grid spacing, time, !
 !    and time-step infomration can also be accessed in    !
-!    the subroutines. The variable "time" gives the flow  ! 
+!    the subroutines. The variable "time" gives the flow  !
 !    time at the end of substep, and the product of the   !
 !    variables "al*dt" gives the substep time duration    !
 !    For Vx grid, the coordinates are xc(i), ym(j), zm(k) !
 !    For Vy grid, the coordinates are xm(i), yc(j), zm(k) !
 !    For Vz grid, the coordinates are xm(i), ym(j), zc(k) !
-!    For Vx grid, the spacings are dxm(i), dyc(j), dzc(k) !
-!    For Vy grid, the spacings are dxc(i), dym(j), dzc(k) !
-!    For Vz grid, the spacings are dxc(i), dyc(j), dzm(k) !
+!    For Vx grid, the spacings are dxc(i), dym(j), dzm(k) !
+!    For Vy grid, the spacings are dxm(i), dyc(j), dzm(k) !
+!    For Vz grid, the spacings are dxm(i), dym(j), dzc(k) !
 !                                                         !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

@@ -63,7 +63,7 @@ module param
     real                    :: pi = 2.0*asin(1.0)
     real                    :: al,ga,ro
 
-    real                    :: cvel
+    real                    :: cvel = 1.0
 
     real, dimension(1:3)    :: vmax
     real, dimension(1:3)    :: vavg
@@ -134,10 +134,6 @@ module boundary_arrays
     integer, parameter                      :: DIRICHLET  = 1
     integer, parameter                      :: NEUMANN    = 2
     integer, parameter                      :: SOMMERFELD = 3
-    ! Arrays for boundary condition coefficients
-    real,dimension(3,3)                     :: coefxs,coefxe
-    real,dimension(3,3)                     :: coefys,coefye
-    real,dimension(3,3)                     :: coefzs,coefze
     ! Arrays to store boundary types (for default pencil)
     integer,allocatable,dimension(:,:,:)    :: btypxs,btypxe
     integer,allocatable,dimension(:,:,:)    :: btypys,btypye

@@ -24,38 +24,19 @@ subroutine CalcBoundaryConditionVY
     integer :: btyp
     real    :: bval
 
-    ! Set the coefficients to be used for tridiagonal solvers
-    !! For Dirichlet boundary condition
-    coefxs(DIRICHLET,2)     = -1.0
-    coefxe(DIRICHLET,2)     = -1.0
-    coefys(DIRICHLET,2)     =  0.0
-    coefye(DIRICHLET,2)     =  0.0
-    coefzs(DIRICHLET,2)     = -1.0
-    coefze(DIRICHLET,2)     = -1.0
-    !! For Neumann boundary condition
-    coefxs(NEUMANN,2)       =  1.0
-    coefxe(NEUMANN,2)       =  1.0
-    coefys(NEUMANN,2)       =  1.0
-    coefye(NEUMANN,2)       =  1.0
-    coefzs(NEUMANN,2)       =  1.0
-    coefze(NEUMANN,2)       =  1.0
-    !! For non-reflecting/advective/Sommerfeld boundary condition
-    coefxs(SOMMERFELD,2)    =  (cvel*al*dt)/((cvel*al*dt) + dxm(1  ))
-    coefxe(SOMMERFELD,2)    =  (cvel*al*dt)/((cvel*al*dt) + dxm(nx ))
-    coefys(SOMMERFELD,2)    =  (cvel*al*dt)/((cvel*al*dt) + dyc(1  ))
-    coefye(SOMMERFELD,2)    =  (cvel*al*dt)/((cvel*al*dt) + dyc(nym))
-    coefzs(SOMMERFELD,2)    =  (cvel*al*dt)/((cvel*al*dt) + dzm(1  ))
-    coefze(SOMMERFELD,2)    =  (cvel*al*dt)/((cvel*al*dt) + dzm(nz ))
-
     ! Store coefficient arrays for implicit solver 
     !! For x-pencils
     if (.not.periodic(1)) then
         do kc = xstart(3),xend(3)
             do jc = xstart(2),xend(2)
                 call VyBcXs(jc,kc,btyp,bval)
-                cfbcxs(jc,kc,2) = coefxs(btyp,2)
+                if (btyp.eq.DIRICHLET)  cfbcxs(jc,kc,2) = -1.0
+                if (btyp.eq.NEUMANN)    cfbcxs(jc,kc,2) =  1.0
+                if (btyp.eq.SOMMERFELD) cfbcxs(jc,kc,2) =  (bval*al*dt)/((bval*al*dt) + dxm(1  ))
                 call VyBcXe(jc,kc,btyp,bval)
-                cfbcxe(jc,kc,2) = coefxe(btyp,2)
+                if (btyp.eq.DIRICHLET)  cfbcxe(jc,kc,2) = -1.0
+                if (btyp.eq.NEUMANN)    cfbcxe(jc,kc,2) =  1.0
+                if (btyp.eq.SOMMERFELD) cfbcxe(jc,kc,2) =  (bval*al*dt)/((bval*al*dt) + dxm(nx ))
             end do
         end do
     end if
@@ -64,9 +45,13 @@ subroutine CalcBoundaryConditionVY
         do kc = ystart(3),yend(3)
             do ic = ystart(1),yend(1)
                 call VyBcYs(ic,kc,btyp,bval)
-                cfbcys(ic,kc,2) = coefys(btyp,2)
+                if (btyp.eq.DIRICHLET)  cfbcys(ic,kc,2) =  0.0
+                if (btyp.eq.NEUMANN)    cfbcys(ic,kc,2) =  1.0
+                if (btyp.eq.SOMMERFELD) cfbcys(ic,kc,2) =  (bval*al*dt)/((bval*al*dt) + dyc(1  ))
                 call VyBcYe(ic,kc,btyp,bval)
-                cfbcye(ic,kc,2) = coefye(btyp,2)
+                if (btyp.eq.DIRICHLET)  cfbcye(ic,kc,2) =  0.0
+                if (btyp.eq.NEUMANN)    cfbcye(ic,kc,2) =  1.0
+                if (btyp.eq.SOMMERFELD) cfbcye(ic,kc,2) =  (bval*al*dt)/((bval*al*dt) + dyc(nym))
             end do
         end do
     end if
@@ -75,9 +60,13 @@ subroutine CalcBoundaryConditionVY
         do jc = zstart(2),zend(2)
             do ic = zstart(1),zend(1)
                 call VyBcZs(ic,jc,btyp,bval)
-                cfbczs(ic,jc,2) = coefzs(btyp,2)
+                if (btyp.eq.DIRICHLET)  cfbczs(ic,jc,2) = -1.0
+                if (btyp.eq.NEUMANN)    cfbczs(ic,jc,2) =  1.0
+                if (btyp.eq.SOMMERFELD) cfbczs(ic,jc,2) =  (bval*al*dt)/((bval*al*dt) + dzm(1  ))
                 call VyBcZe(ic,jc,btyp,bval)
-                cfbcze(ic,jc,2) = coefze(btyp,2)
+                if (btyp.eq.DIRICHLET)  cfbcze(ic,jc,2) = -1.0
+                if (btyp.eq.NEUMANN)    cfbcze(ic,jc,2) =  1.0
+                if (btyp.eq.SOMMERFELD) cfbcze(ic,jc,2) =  (bval*al*dt)/((bval*al*dt) + dzm(nz ))
             end do
         end do
     end if
@@ -89,10 +78,10 @@ subroutine CalcBoundaryConditionVY
             do jc = xstart(2),xend(2)+lvlhalo
                 call VyBcXs(jc,kc,btypxs(jc,kc,2), bvalxs(jc,kc,2))
                 !!! Store this value needed for imposing B.C.s later
-                if (btypxs(jc,kc,2).eq.SOMMERFELD) bvalxs(jc,kc,2) = cvel*al*dt/dxm(1  )
+                if (btypxs(jc,kc,2).eq.SOMMERFELD) bvalxs(jc,kc,2) = bvalxs(jc,kc,2)*al*dt/dxm(1  )
                 call VyBcXe(jc,kc,btypxe(jc,kc,2), bvalxe(jc,kc,2))
                 !!! Store this value needed for imposing B.C.s later
-                if (btypxe(jc,kc,2).eq.SOMMERFELD) bvalxe(jc,kc,2) = cvel*al*dt/dxm(nx )
+                if (btypxe(jc,kc,2).eq.SOMMERFELD) bvalxe(jc,kc,2) = bvalxe(jc,kc,2)*al*dt/dxm(nx )
             end do
         end do
     end if
@@ -103,7 +92,7 @@ subroutine CalcBoundaryConditionVY
                 do ic = xstart(1)-lvlhalo,xend(1)+lvlhalo
                     call VyBcYs(ic,kc,btypys(ic,kc,2), bvalys(ic,kc,2))
                     !!! Store this value needed for imposing B.C.s later
-                    if (btypys(ic,kc,2).eq.SOMMERFELD) bvalys(ic,kc,2) = cvel*al*dt/dyc(1  )
+                    if (btypys(ic,kc,2).eq.SOMMERFELD) bvalys(ic,kc,2) = bvalys(ic,kc,2)*al*dt/dyc(1  )
                 end do
             end do
         end if
@@ -112,7 +101,7 @@ subroutine CalcBoundaryConditionVY
                 do ic = xstart(1)-lvlhalo,xend(1)+lvlhalo
                     call VyBcYe(ic,kc,btypye(ic,kc,2), bvalye(ic,kc,2))
                     !!! Store this value needed for imposing B.C.s later
-                    if (btypye(ic,kc,2).eq.SOMMERFELD) bvalye(ic,kc,2) = cvel*al*dt/dyc(nym)
+                    if (btypye(ic,kc,2).eq.SOMMERFELD) bvalye(ic,kc,2) = bvalye(ic,kc,2)*al*dt/dyc(nym)
                 end do
             end do
         end if
@@ -124,7 +113,7 @@ subroutine CalcBoundaryConditionVY
                 do ic = xstart(1)-lvlhalo,xend(1)+lvlhalo
                     call VyBcZs(ic,jc,btypzs(ic,jc,2), bvalzs(ic,jc,2))
                     !!! Store this value needed for imposing B.C.s later
-                    if (btypzs(ic,jc,2).eq.SOMMERFELD) bvalzs(ic,jc,2) = cvel*al*dt/dzm(1  )
+                    if (btypzs(ic,jc,2).eq.SOMMERFELD) bvalzs(ic,jc,2) = bvalzs(ic,jc,2)*al*dt/dzm(1  )
                 end do
             end do
         end if
@@ -133,7 +122,7 @@ subroutine CalcBoundaryConditionVY
                 do ic = xstart(1)-lvlhalo,xend(1)+lvlhalo
                     call VyBcZe(ic,jc,btypze(ic,jc,2), bvalze(ic,jc,2))
                     !!! Store this value needed for imposing B.C.s later
-                    if (btypze(ic,jc,2).eq.SOMMERFELD) bvalze(ic,jc,2) = cvel*al*dt/dzm(nz )
+                    if (btypze(ic,jc,2).eq.SOMMERFELD) bvalze(ic,jc,2) = bvalze(ic,jc,2)*al*dt/dzm(nz )
                 end do
             end do
         end if
@@ -163,11 +152,11 @@ subroutine AddBoundaryRHSTermsVY
                 !! Boundary condition at x-axis start
                 if (btypxs(jc,kc,2).eq.DIRICHLET)  rhx(1  ,jc,kc) = rhx(1  ,jc,kc) + beta*am1ci(1  )*(2.0*bvalxs(jc,kc,2) - (vy(1,jc,kc) + vy(0,jc,kc)))
                 if (btypxs(jc,kc,2).eq.NEUMANN)    rhx(1  ,jc,kc) = rhx(1  ,jc,kc) - beta*am1ci(1  )*(bvalxs(jc,kc,2)*dxm(1) - (vy(1,jc,kc) - vy(0,jc,kc)))
-                if (btypxs(jc,kc,2).eq.SOMMERFELD) rhx(1  ,jc,kc) = rhx(1  ,jc,kc) + beta*am1ci(1  )*(coefxs(SOMMERFELD,2)*(vy(1,jc,kc) - vy(0,jc,kc)))
+                if (btypxs(jc,kc,2).eq.SOMMERFELD) rhx(1  ,jc,kc) = rhx(1  ,jc,kc) + beta*am1ci(1  )*(bvalxs(jc,kc,2)*(vy(1,jc,kc) - vy(0,jc,kc))/(1.0 + bvalxs(jc,kc,2)))
                 !! Boundary condition at x-axis end
                 if (btypxe(jc,kc,2).eq.DIRICHLET)  rhx(nxm,jc,kc) = rhx(nxm,jc,kc) + beta*ap1ci(nxm)*(2.0*bvalxe(jc,kc,2) - (vy(nxm,jc,kc) + vy(nx,jc,kc)))
                 if (btypxe(jc,kc,2).eq.NEUMANN)    rhx(nxm,jc,kc) = rhx(nxm,jc,kc) + beta*ap1ci(nxm)*(bvalxe(jc,kc,2)*dxm(nx) + (vy(nxm,jc,kc) - vy(nx,jc,kc)))
-                if (btypxe(jc,kc,2).eq.SOMMERFELD) rhx(nxm,jc,kc) = rhx(nxm,jc,kc) + beta*ap1ci(nxm)*(coefxe(SOMMERFELD,2)*(vy(nxm,jc,kc) - vy(nx,jc,kc)))
+                if (btypxe(jc,kc,2).eq.SOMMERFELD) rhx(nxm,jc,kc) = rhx(nxm,jc,kc) + beta*ap1ci(nxm)*(bvalxe(jc,kc,2)*(vy(nxm,jc,kc) - vy(nx,jc,kc))/(1.0 + bvalxe(jc,kc,2)))
             end do
         end do
     end if
@@ -180,7 +169,7 @@ subroutine AddBoundaryRHSTermsVY
                     !! Boundary condition at y-axis start
                     if (btypys(ic,kc,2).eq.DIRICHLET)  rhx(ic,2  ,kc) = rhx(ic,2  ,kc) + beta*am2sj(2  )*(bvalys(ic,kc,2) - vy(ic,1,kc))
                     if (btypys(ic,kc,2).eq.NEUMANN)    rhx(ic,2  ,kc) = rhx(ic,2  ,kc) - beta*am2sj(2  )*(bvalys(ic,kc,2)*dyc(1) - (vy(ic,2,kc) - vy(ic,1,kc)))
-                    if (btypys(ic,kc,2).eq.SOMMERFELD) rhx(ic,2  ,kc) = rhx(ic,2  ,kc) + beta*am2sj(2  )*(coefys(SOMMERFELD,2)*(vy(ic,2,kc) - vy(ic,1,kc)))
+                    if (btypys(ic,kc,2).eq.SOMMERFELD) rhx(ic,2  ,kc) = rhx(ic,2  ,kc) + beta*am2sj(2  )*(bvalys(ic,kc,2)*(vy(ic,2,kc) - vy(ic,1,kc))/(1.0 + bvalys(ic,kc,2)))
                 end do
             end do
         end if
@@ -190,7 +179,7 @@ subroutine AddBoundaryRHSTermsVY
                     !! Boundary condition at y-axis end
                     if (btypye(ic,kc,2).eq.DIRICHLET)  rhx(ic,nym,kc) = rhx(ic,nym,kc) + beta*ap2sj(nym)*(bvalye(ic,kc,2) - vy(ic,ny,kc))
                     if (btypye(ic,kc,2).eq.NEUMANN)    rhx(ic,nym,kc) = rhx(ic,nym,kc) + beta*ap2sj(nym)*(bvalye(ic,kc,2)*dyc(nym) + (vy(ic,nym,kc) - vy(ic,ny,kc)))
-                    if (btypye(ic,kc,2).eq.SOMMERFELD) rhx(ic,nym,kc) = rhx(ic,nym,kc) + beta*ap2sj(nym)*(coefye(SOMMERFELD,2)*(vy(ic,nym,kc) - vy(ic,ny,kc)))
+                    if (btypye(ic,kc,2).eq.SOMMERFELD) rhx(ic,nym,kc) = rhx(ic,nym,kc) + beta*ap2sj(nym)*(bvalye(ic,kc,2)*(vy(ic,nym,kc) - vy(ic,ny,kc))/(1.0 + bvalye(ic,kc,2)))
                 end do
             end do
         end if
@@ -204,7 +193,7 @@ subroutine AddBoundaryRHSTermsVY
                     !! Boundary condition at z-axis start
                     if (btypzs(ic,jc,2).eq.DIRICHLET)  rhx(ic,jc,1  ) = rhx(ic,jc,1  ) + beta*am3ck(1  )*(2.0*bvalzs(ic,jc,2) - (vy(ic,jc,1) + vy(ic,jc,0)))
                     if (btypzs(ic,jc,2).eq.NEUMANN)    rhx(ic,jc,1  ) = rhx(ic,jc,1  ) - beta*am3ck(1  )*(bvalzs(ic,jc,2)*dzm(1) - (vy(ic,jc,1) - vy(ic,jc,0)))
-                    if (btypzs(ic,jc,2).eq.SOMMERFELD) rhx(ic,jc,1  ) = rhx(ic,jc,1  ) + beta*am3ck(1  )*(coefzs(SOMMERFELD,2)*(vy(ic,jc,1) - vy(ic,jc,0)))
+                    if (btypzs(ic,jc,2).eq.SOMMERFELD) rhx(ic,jc,1  ) = rhx(ic,jc,1  ) + beta*am3ck(1  )*(bvalzs(ic,jc,2)*(vy(ic,jc,1) - vy(ic,jc,0))/(1.0 + bvalzs(ic,jc,2)))
                 end do
             end do
         end if
@@ -214,7 +203,7 @@ subroutine AddBoundaryRHSTermsVY
                     !! Boundary condition at z-axis end
                     if (btypze(ic,jc,2).eq.DIRICHLET)  rhx(ic,jc,nzm) = rhx(ic,jc,nzm) + beta*ap3ck(nzm)*(2.0*bvalze(ic,jc,2) - (vy(ic,jc,nzm) + vy(ic,jc,nz)))
                     if (btypze(ic,jc,2).eq.NEUMANN)    rhx(ic,jc,nzm) = rhx(ic,jc,nzm) + beta*ap3ck(nzm)*(bvalze(ic,jc,2)*dzm(nz) + (vy(ic,jc,nzm) - vy(ic,jc,nz)))
-                    if (btypze(ic,jc,2).eq.SOMMERFELD) rhx(ic,jc,nzm) = rhx(ic,jc,nzm) + beta*ap3ck(nzm)*(coefze(SOMMERFELD,2)*(vy(ic,jc,nzm) - vy(ic,jc,nz)))
+                    if (btypze(ic,jc,2).eq.SOMMERFELD) rhx(ic,jc,nzm) = rhx(ic,jc,nzm) + beta*ap3ck(nzm)*(bvalze(ic,jc,2)*(vy(ic,jc,nzm) - vy(ic,jc,nz))/(1.0 + bvalze(ic,jc,2)))
                 end do
             end do
         end if

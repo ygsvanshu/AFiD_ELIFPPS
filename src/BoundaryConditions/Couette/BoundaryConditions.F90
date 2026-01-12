@@ -87,7 +87,7 @@ subroutine VxBcYe(i,k,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = cvel*dym(ny)/(al*dt)
+    bval = cvel*dym(ny)/dtmax
 
 end subroutine VxBcYe
 
@@ -103,7 +103,7 @@ subroutine VxBcZs(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = cvel*dzm(1)/(al*dt)
+    bval = cvel*dzm(1)/dtmax
 
 end subroutine VxBcZs
 
@@ -119,7 +119,7 @@ subroutine VxBcZe(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = cvel*dzm(nz)/(al*dt)
+    bval = cvel*dzm(nz)/dtmax
 
 end subroutine VxBcZe
 
@@ -185,7 +185,7 @@ subroutine VyBcYe(i,k,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = cvel*dyc(nym)/(al*dt)
+    bval = cvel*dyc(nym)/dtmax
 
 end subroutine VyBcYe
 
@@ -201,7 +201,7 @@ subroutine VyBcZs(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = cvel*dzm(1)/(al*dt)
+    bval = cvel*dzm(1)/dtmax
 
 end subroutine VyBcZs
 
@@ -217,7 +217,7 @@ subroutine VyBcZe(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = cvel*dzm(nz)/(al*dt)
+    bval = cvel*dzm(nz)/dtmax
 
 end subroutine VyBcZe
 
@@ -283,7 +283,7 @@ subroutine VzBcYe(i,k,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = cvel*dym(ny)/(al*dt)
+    bval = cvel*dym(ny)/dtmax
 
 end subroutine VzBcYe
 
@@ -299,7 +299,7 @@ subroutine VzBcZs(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = cvel*dzc(1)/(al*dt)
+    bval = cvel*dzc(1)/dtmax
 
 end subroutine VzBcZs
 
@@ -315,6 +315,6 @@ subroutine VzBcZe(i,j,btyp,bval)
     real,    intent(out)    :: bval
 
     btyp = SOMMERFELD
-    bval = cvel*dzc(nzm)/(al*dt)
+    bval = cvel*dzc(nzm)/dtmax
 
 end subroutine VzBcZe

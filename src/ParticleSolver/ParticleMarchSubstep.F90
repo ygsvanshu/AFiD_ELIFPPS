@@ -55,9 +55,9 @@ subroutine ParticleMarchSubstep
             np = np + 1
         else
             !! Particle is out of bounds and should be deactivated.
-            !!! Exchange with the last active particle unless not already the last particle
+            !!! Copy the last active particle unless not already the last particle
             if (np.lt.lpp_actv) lpp_list(np) = lpp_list(lpp_actv)
-            !!! Decrement the number of active particle count in lpp_list
+            !!! Decrement the number of active particle count in lpp_list, deactivating the last (duplicate) particle
             lpp_actv = lpp_actv - 1
         end if
     end do

@@ -28,7 +28,6 @@ subroutine ReadParticles
     type(particle_data), allocatable, dimension(:)  :: tlpp
     logical, allocatable, dimension(:)              :: mask
     integer, allocatable, dimension(:)              :: trnk
-    integer                                         :: tcnt(0:mpi_size-1)
     integer, dimension(mpi_size)                    :: xst2,xen2,xst3,xen3
     integer, dimension(mpi_size)                    :: scnt,sdsp,rcnt,rdsp
 
@@ -67,11 +66,7 @@ subroutine ReadParticles
         if (mpi_rank.lt.modulo(lppt,mpi_size)) lppr = lppr + 1
 
         !! Get the start and end indices for the local pencil/process
-        do rnum = 0,mpi_rank
-            tcnt(rnum) = int(lppt/mpi_size)
-            if (rnum.lt.modulo(lppt,mpi_size)) tcnt(rnum) = tcnt(rnum) + 1
-        end do
-        lpen = sum(tcnt(0:mpi_rank))
+        call MPI_SCAN(lppr,lpen,1,MPI_INTEGER,MPI_SUM,mpi_comm,mpi_ierr)
         lpst = lpen - lppr + 1
 
         !! Allocate temporary arrays

@@ -12,7 +12,7 @@ subroutine ReadParticles
 
     use mpih
     use decomp_2d
-    use param, only: ismaster
+    use param, only: ismaster,periodic,nx,ny,nz,nxm,nym,nzm,xc,yc,zc,xm,ym,zm
     use lagrangian_point_particle
 
     implicit none
@@ -25,12 +25,12 @@ subroutine ReadParticles
     integer                                         :: lppr,lpps,lppt
     integer                                         :: lpst,lpen
     type(particle_data)                             :: tmpp
+    type(particle_data), allocatable, dimension(:)  :: rlpp
     type(particle_data), allocatable, dimension(:)  :: tlpp
     logical, allocatable, dimension(:)              :: mask
     integer, allocatable, dimension(:)              :: trnk
-    integer                                         :: tcnt(0:mpi_size-1)
-    integer, dimension(mpi_size)                    :: xst2,xen2,xst3,xen3
     integer, dimension(mpi_size)                    :: scnt,sdsp,rcnt,rdsp
+    real   , dimension(mpi_size)                    :: xst2,xen2,xst3,xen3
 
     filename = trim("continua.h5")
 
@@ -67,43 +67,90 @@ subroutine ReadParticles
         if (mpi_rank.lt.modulo(lppt,mpi_size)) lppr = lppr + 1
 
         !! Get the start and end indices for the local pencil/process
-        do rnum = 0,mpi_rank
-            tcnt(rnum) = int(lppt/mpi_size)
-            if (rnum.lt.modulo(lppt,mpi_size)) tcnt(rnum) = tcnt(rnum) + 1
-        end do
-        lpen = sum(tcnt(0:mpi_rank))
+        call MPI_SCAN(lppr,lpen,1,MPI_INTEGER,MPI_SUM,mpi_comm,mpi_ierr)
         lpst = lpen - lppr + 1
+
+        !! Allocate temporary read buffer
+        allocate(rlpp(lppr))
+
+        dsetname = trim("")
+        call HdfParallelReadParticle1D(filename,dsetname,rlpp(1:lppr),lpst,lpen,1,lppt,mpi_comm)
+
+        lnum = 1
+        do while(lnum.le.lppr)
+            !!! Check if particle is within the computational domain
+            call CheckIsParticleGlobal(rlpp(lnum),locl)
+            if (locl) then
+                !!!! Proceed to the next particle
+                lnum = lnum + 1
+            else
+                !!!! Particle is out of bounds and should be not be read in.
+                !!!! Copy the last active particle unless not already the last particle
+                if (lnum.lt.lppr) rlpp(lnum) = rlpp(lppr)
+                !!!! Decrement the number of active particle count in temporary lpp list, last particle is deactivated
+                lppr = lppr - 1
+            end if
+        end do
 
         !! Allocate temporary arrays
         allocate(tlpp(lppr))
         allocate(trnk(lppr))
         allocate(mask(lppr))
+        
+        !! Copy over valid particles
+        do lnum = 1,lppr
+            tlpp(lnum) = rlpp(lnum)
+        end do
 
-        dsetname = trim("")
-        call HdfParallelReadParticle1D(filename,dsetname,tlpp(1:lppr),lpst,lpen,1,lppt,mpi_comm)
+        !! Deallocate the read buffer
+        deallocate(rlpp)
 
         !! Set the decomp information
-        xst2(mpi_rank+1) = xstart(2)
-        xen2(mpi_rank+1) = xend(2)
-        xst3(mpi_rank+1) = xstart(3)
-        xen3(mpi_rank+1) = xend(3)
+        xst2(mpi_rank+1) = yc(xstart(2))
+        xen2(mpi_rank+1) = yc(xend(2)+1)
+        xst3(mpi_rank+1) = zc(xstart(3))
+        xen3(mpi_rank+1) = zc(xend(3)+1)
 
         !! Call MPI_Allgather in place to get decomp information from all pencils/processes
-        call MPI_ALLGATHER(MPI_IN_PLACE,1,MPI_INTEGER,xst2,1,MPI_INTEGER,mpi_comm,mpi_ierr)
-        call MPI_ALLGATHER(MPI_IN_PLACE,1,MPI_INTEGER,xen2,1,MPI_INTEGER,mpi_comm,mpi_ierr)
-        call MPI_ALLGATHER(MPI_IN_PLACE,1,MPI_INTEGER,xst3,1,MPI_INTEGER,mpi_comm,mpi_ierr)
-        call MPI_ALLGATHER(MPI_IN_PLACE,1,MPI_INTEGER,xen3,1,MPI_INTEGER,mpi_comm,mpi_ierr)
+        call MPI_ALLGATHER(MPI_IN_PLACE,1,MPI_DOUBLE_PRECISION,xst2,1,MPI_DOUBLE_PRECISION,mpi_comm,mpi_ierr)
+        call MPI_ALLGATHER(MPI_IN_PLACE,1,MPI_DOUBLE_PRECISION,xen2,1,MPI_DOUBLE_PRECISION,mpi_comm,mpi_ierr)
+        call MPI_ALLGATHER(MPI_IN_PLACE,1,MPI_DOUBLE_PRECISION,xst3,1,MPI_DOUBLE_PRECISION,mpi_comm,mpi_ierr)
+        call MPI_ALLGATHER(MPI_IN_PLACE,1,MPI_DOUBLE_PRECISION,xen3,1,MPI_DOUBLE_PRECISION,mpi_comm,mpi_ierr)
 
         !! Find local pencil/process rank for each read particle
         do lnum = 1,lppr
-            rnum = 0
+            ! Initialize cell indices for c-grid (nodes)
+            tlpp(lnum)%grc_idx(1) = int(nxm/2)
+            tlpp(lnum)%grc_idx(2) = int(nym/2)
+            tlpp(lnum)%grc_idx(3) = int(nzm/2)
+            ! Find and update cell indices for c-grid (nodes)
+            call GetLocationCellIndex(tlpp(lnum)%lpp_pos(1),xc(1:nx),1,nx,tlpp(lnum)%grc_idx(1))
+            call GetLocationCellIndex(tlpp(lnum)%lpp_pos(2),yc(1:ny),1,ny,tlpp(lnum)%grc_idx(2))
+            call GetLocationCellIndex(tlpp(lnum)%lpp_pos(3),zc(1:nz),1,nz,tlpp(lnum)%grc_idx(3))
+            ! Initialize cell indices for m-grid (cell-center)
+            tlpp(lnum)%grm_idx(1) = int(nxm/2)
+            tlpp(lnum)%grm_idx(2) = int(nym/2)
+            tlpp(lnum)%grm_idx(3) = int(nzm/2)
+            ! Find and update cell indices for m-grid (cell-center)
+            call GetLocationCellIndex(tlpp(lnum)%lpp_pos(1),xm(0:nx),0,nx,tlpp(lnum)%grm_idx(1))
+            call GetLocationCellIndex(tlpp(lnum)%lpp_pos(2),ym(0:ny),0,ny,tlpp(lnum)%grm_idx(2))
+            call GetLocationCellIndex(tlpp(lnum)%lpp_pos(3),zm(0:nz),0,nz,tlpp(lnum)%grm_idx(3))
+            rnum = 1
             locl = .false.
-            do while ((rnum.lt.mpi_size).and.(.not.locl))
+            do while ((rnum.le.mpi_size).and.(.not.locl))
                 locl        = .true.
-                locl        = locl.and.(tlpp(lnum)%grc_idx(2).ge.xst2(rnum+1))
-                locl        = locl.and.(tlpp(lnum)%grc_idx(2).le.xen2(rnum+1))
-                locl        = locl.and.(tlpp(lnum)%grc_idx(3).ge.xst3(rnum+1))
-                locl        = locl.and.(tlpp(lnum)%grc_idx(3).le.xen3(rnum+1))
+                if (periodic(2)) then
+                    locl    = locl.and.(tlpp(lnum)%lpp_pos(2).ge.xst2(rnum))
+                else
+                    locl    = locl.and.(tlpp(lnum)%lpp_pos(2).gt.xst2(rnum))
+                end if
+                locl        = locl.and.(tlpp(lnum)%lpp_pos(2).lt.xen2(rnum))
+                if (periodic(3)) then
+                    locl    = locl.and.(tlpp(lnum)%lpp_pos(3).ge.xst3(rnum))
+                else
+                    locl    = locl.and.(tlpp(lnum)%lpp_pos(3).gt.xst3(rnum))
+                end if
+                locl        = locl.and.(tlpp(lnum)%lpp_pos(3).lt.xen3(rnum))
                 trnk(lnum)  = rnum
                 rnum        = rnum + 1
             end do
@@ -127,9 +174,9 @@ subroutine ReadParticles
         end do
 
         !! Get the send counts and displacements
-        scnt = 0
+        scnt(:) = 0
         do lnum = 1,lppr
-            scnt(trnk(lppr)) = scnt(trnk(lppr)) + 1
+            scnt(trnk(lnum)) = scnt(trnk(lnum)) + 1
         end do
         sdsp(1) = 0
         do rnum = 2,mpi_size
@@ -164,6 +211,14 @@ subroutine ReadParticles
         deallocate(tlpp)
         deallocate(trnk)
         deallocate(mask)
+
+        do lnum = 1,lpp_actv
+            call CheckIsParticleLocal(lpp_list(lnum),locl)
+            if (.not.locl) then
+                write(*,*) 'Error reading in particles from continua.h5'
+                call MpiAbort
+            end if
+        end do
 
     end if
 

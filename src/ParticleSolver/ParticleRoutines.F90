@@ -46,7 +46,7 @@ end subroutine CheckIsParticleGlobal
 subroutine CheckIsParticleLocal(p,n) 
 
     use decomp_2d, only: xstart,xend
-    use param, only: xc,yc,zc,xlen,ylen,zlen,periodic
+    use param, only: xc,yc,zc,periodic
     use lagrangian_point_particle, only: particle_data
 
     implicit none
@@ -54,11 +54,7 @@ subroutine CheckIsParticleLocal(p,n)
     type(particle_data), intent(in) :: p
     logical, intent(out)            :: n
     integer                         :: i
-    real                            :: nlen(3),ncst(3),ncen(3)
-
-    nlen(1) = xlen
-    nlen(2) = ylen
-    nlen(3) = zlen
+    real                            :: ncst(3),ncen(3)
 
     ncst(1) = xc(xstart(1))
     ncst(2) = yc(xstart(2))

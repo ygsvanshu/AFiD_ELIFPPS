@@ -164,7 +164,7 @@ subroutine HdfParallelWriteParticle1D(filename,dsetname,var,st1,en1,n1s,n1e,comm
         ! Write particle accelerations (previous)
         do i = 1,en1-st1+1
             do j = 1,3
-                vctr(i,j) = var(i)%acc_old(i)
+                vctr(i,j) = var(i)%acc_old(j)
             end do
         end do
         call h5sselect_hyperslab_f(filespace(8),H5S_SELECT_SET_F,data_offset2,data_count2,hdf_error)
@@ -172,7 +172,7 @@ subroutine HdfParallelWriteParticle1D(filename,dsetname,var,st1,en1,n1s,n1e,comm
         ! Write particle accelerations (current)
         do i = 1,en1-st1+1
             do j = 1,3
-                vctr(i,j) = var(i)%acc_now(i)
+                vctr(i,j) = var(i)%acc_now(j)
             end do
         end do
         call h5sselect_hyperslab_f(filespace(9),H5S_SELECT_SET_F,data_offset2,data_count2,hdf_error)
@@ -324,7 +324,7 @@ subroutine HdfParallelReadParticle1D(filename,dsetname,var,st1,en1,n1s,n1e,comm)
         call h5dread_f(dset_id(8),H5T_NATIVE_DOUBLE, vctr,dims2,hdf_error,file_space_id=filespace(8),mem_space_id=memspace2,xfer_prp=plist_id)
         do i = 1,en1-st1+1
             do j = 1,3
-                var(i)%acc_old(i) = vctr(i,j)
+                var(i)%acc_old(j) = vctr(i,j)
             end do
         end do
         ! Read particle accelerations (current)
@@ -332,7 +332,7 @@ subroutine HdfParallelReadParticle1D(filename,dsetname,var,st1,en1,n1s,n1e,comm)
         call h5dread_f(dset_id(9),H5T_NATIVE_DOUBLE, vctr,dims2,hdf_error,file_space_id=filespace(9),mem_space_id=memspace2,xfer_prp=plist_id)
         do i = 1,en1-st1+1
             do j = 1,3
-                var(i)%acc_now(i)  = vctr(i,j)
+                var(i)%acc_now(j)  = vctr(i,j)
             end do
         end do
         

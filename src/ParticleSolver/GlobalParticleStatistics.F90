@@ -42,25 +42,36 @@ subroutine GlobalParticleStatistics
     tot_spwn = tot_spwn + int_dummy
     call MPI_REDUCE(lpp_exit,int_dummy,1,MPI_INTEGER,MPI_SUM,0,mpi_comm,mpi_ierr)
     tot_exit = tot_exit + int_dummy
-    !! Call MPI_Allreduce to get the total active particles
-    call MPI_ALLREDUCE((lpp_actv-sub_exit),int_dummy,1,MPI_INTEGER,MPI_SUM,mpi_comm,mpi_ierr)
-    tot_actv = int_dummy
     !! Reset the count of spawned and exited particles
     lpp_spwn = 0
     lpp_exit = 0
 
-    ! Check if there are any globally active particles to write statistical data for
-    if (tot_actv.gt.0) then
+    ! Initialize total number of globally active particles to zero
+    tot_actv = 0
 
-        !! Compute particle maximum, mean, and RMS velocities
-        do ndir = 1,3
-            
-            do nlpp = 1,lpp_actv
+    ! Compute particle maximum, mean, and RMS velocities within pencil/process
+    do nlpp = 1,lpp_actv
+        call CheckIsParticleGlobal(lpp_list(nlpp),gbound)
+        if (gbound) then
+            do ndir = 1,3
                 if (abs(lpp_list(nlpp)%lpp_vel(ndir)) .gt. lpp_vmax(ndir)) lpp_vmax(ndir) = abs(lpp_list(nlpp)%lpp_vel(ndir))
                 lpp_vavg(ndir) = lpp_vavg(ndir) + (lpp_list(nlpp)%lpp_vel(ndir))/tot_actv
                 lpp_vrms(ndir) = lpp_vrms(ndir) + (lpp_list(nlpp)%lpp_vel(ndir)**2.0)/tot_actv
             end do
+            tot_actv = tot_actv + 1
+        end if
+    end do
 
+    ! Call MPI_Allreduce to get the total active particles
+    call MPI_ALLREDUCE(tot_actv,int_dummy,1,MPI_INTEGER,MPI_SUM,mpi_comm,mpi_ierr)
+    tot_actv = int_dummy
+    
+    ! Check if there are any globally active particles to write statistical data for
+    if (tot_actv.gt.0) then
+
+        !! Consolidate maximum, mean, and RMS values from all pencils/processes
+        do ndir = 1,3
+            
             call MPI_REDUCE(lpp_vmax(ndir),res_dummy,1,MPI_DOUBLE_PRECISION,MPI_MAX,0,mpi_comm,mpi_ierr)
             lpp_vmax(ndir) = res_dummy
             call MPI_REDUCE(lpp_vavg(ndir),res_dummy,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,mpi_comm,mpi_ierr)
@@ -72,7 +83,7 @@ subroutine GlobalParticleStatistics
 
         fvol = xlen*zlen*ylen
 
-        !! Compute the maximum, mean, and RMS body force values
+        !! Compute the maximum, mean, and RMS body force values for current pencil/process
         do kc=xstart(3),xend(3)
             kp = kc+1
             do jc=xstart(2),xend(2)
@@ -98,6 +109,7 @@ subroutine GlobalParticleStatistics
             enddo
         enddo
 
+        !! Consolidate maximum, mean, and RMS body force values from all pencils/processes
         do ndir = 1,3
 
             call MPI_REDUCE(lpp_bmax(ndir),res_dummy,1,MPI_DOUBLE_PRECISION,MPI_MAX,0,mpi_comm,mpi_ierr)

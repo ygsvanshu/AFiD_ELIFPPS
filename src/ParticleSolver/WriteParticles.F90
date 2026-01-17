@@ -23,6 +23,8 @@ subroutine WriteParticles(end)
     integer                             :: int_dummy
     integer                             :: lppr,lppt
     integer                             :: lpst,lpen
+    integer                             :: wrt_spwn
+    integer                             :: wrt_exit
 
     ! Get the number of active particles in pencil/process and the total number of active particles 
     lppr = lpp_actv
@@ -45,14 +47,9 @@ subroutine WriteParticles(end)
     ! Get the total counts of spawned and exited particles
     !! Call MPI_Reduce to get the total counts
     call MPI_REDUCE(lpp_spwn,int_dummy,1,MPI_INTEGER,MPI_SUM,0,mpi_comm,mpi_ierr)
-    tot_spwn = tot_spwn + int_dummy
+    wrt_spwn = tot_spwn + int_dummy
     call MPI_REDUCE(lpp_exit,int_dummy,1,MPI_INTEGER,MPI_SUM,0,mpi_comm,mpi_ierr)
-    tot_exit = tot_exit + int_dummy
-    call MPI_REDUCE((lpp_actv-sub_exit),int_dummy,1,MPI_INTEGER,MPI_SUM,0,mpi_comm,mpi_ierr)
-    tot_actv = int_dummy
-    !! Reset the count of spawned and exited particles
-    lpp_spwn = 0
-    lpp_exit = 0
+    wrt_exit = tot_exit + int_dummy
 
     !! Write data global time and timestep
     if (ismaster) then
@@ -67,9 +64,9 @@ subroutine WriteParticles(end)
         dsetname = "/l2e_mult"
         call HdfSerialWriteRealScalar(filename,dsetname,l2e_mult)
         dsetname = "/lpp_spwn"
-        call HdfSerialWriteIntScalar(filename,dsetname,tot_spwn)
+        call HdfSerialWriteIntScalar(filename,dsetname,wrt_spwn)
         dsetname = "/lpp_exit"
-        call HdfSerialWriteIntScalar(filename,dsetname,tot_exit)
+        call HdfSerialWriteIntScalar(filename,dsetname,wrt_exit)
     end if
 
     !! Write the particle data

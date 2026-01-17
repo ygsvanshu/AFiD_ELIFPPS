@@ -50,7 +50,7 @@ subroutine ReadParticleSources
 
         ! Allocate required amount of space in the source buffer and spawn count buffer
         allocate(src_list(src_size))
-        allocate(src_spwn(src_list))
+        allocate(src_spwn(src_size))
 
         ! Actually read the sources
         open(99, file=trim(filename))

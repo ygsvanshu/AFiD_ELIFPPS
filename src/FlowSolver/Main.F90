@@ -76,7 +76,6 @@ program AFiD
         if (ismaster) write (6,*) 'Reading initial condition from file'
         call ReadFlowField
         if (particle) call ReadParticles
-        if (particle) call UpdateParticleSourceStartTime
     else
         if (ismaster) write (6,*) 'Creating initial condition'
         ntime = 0

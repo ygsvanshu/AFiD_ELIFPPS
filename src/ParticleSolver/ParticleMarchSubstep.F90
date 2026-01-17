@@ -18,7 +18,8 @@ subroutine ParticleMarchSubstep
 
     logical                         :: lbound,gbound
     integer                         :: np,nq
-    real                            :: cffc(3),cffm(3),forc(3),dlft
+    real                            :: nfrc(3,3)
+    real                            :: dlft
 
     ! Reset previous body force calculation
     lpp_bdfx(:,:,:) = 0.0
@@ -47,7 +48,7 @@ subroutine ParticleMarchSubstep
             !!! Update particle
             call UpdateParticleGridIndices(lpp_list(np))                        ! Update cell-indices of the particles at their new positions
             call InitParticleAcceleration(lpp_list(np))                         ! Initialize particle acceleration
-            call AddParticleAccelerationDrag(lpp_list(np),cffc,cffm,forc)       ! Add fluid drag forces to particle acceleration   
+            call AddParticleAccelerationDrag(lpp_list(np),nfrc)                 ! Add fluid drag forces to particle acceleration   
             call AddParticleAccelerationGravity(lpp_list(np))                   ! Add particle acceleration due to particle apparent weight   
             call UpdateParticleVelocity(lpp_list(np))                           ! Update velocity of particles using 3rd order Runge-Kutta time-stepping scheme
             call UpdateParticlePosition(lpp_list(np))                           ! Update position of particles using (2nd order) Crank-Nicolson time-stepping scheme
@@ -62,7 +63,7 @@ subroutine ParticleMarchSubstep
                     pex_actv = pex_actv + 1                                     ! Update total number of exit events are to be written
                 end if
             end if
-            call ApplyParticleDragForce(lpp_list(np),cffc,cffm,forc,dlft)       ! Apply the drag force from the particle on the Eulerian field
+            call ApplyParticleDragForce(lpp_list(np),nfrc,dlft)                 ! Apply the drag force from the particle on the Eulerian field
             !!! Proceed to the next particle
             np = np + 1
         else

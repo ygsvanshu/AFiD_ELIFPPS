@@ -55,8 +55,8 @@ subroutine GlobalParticleStatistics
         if (gbound) then
             do ndir = 1,3
                 if (abs(lpp_list(nlpp)%lpp_vel(ndir)) .gt. lpp_vmax(ndir)) lpp_vmax(ndir) = abs(lpp_list(nlpp)%lpp_vel(ndir))
-                lpp_vavg(ndir) = lpp_vavg(ndir) + (lpp_list(nlpp)%lpp_vel(ndir))/tot_actv
-                lpp_vrms(ndir) = lpp_vrms(ndir) + (lpp_list(nlpp)%lpp_vel(ndir)**2.0)/tot_actv
+                lpp_vavg(ndir) = lpp_vavg(ndir) + (lpp_list(nlpp)%lpp_vel(ndir))
+                lpp_vrms(ndir) = lpp_vrms(ndir) + (lpp_list(nlpp)%lpp_vel(ndir)**2.0)
             end do
             tot_actv = tot_actv + 1
         end if
@@ -75,9 +75,9 @@ subroutine GlobalParticleStatistics
             call MPI_REDUCE(lpp_vmax(ndir),res_dummy,1,MPI_DOUBLE_PRECISION,MPI_MAX,0,mpi_comm,mpi_ierr)
             lpp_vmax(ndir) = res_dummy
             call MPI_REDUCE(lpp_vavg(ndir),res_dummy,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,mpi_comm,mpi_ierr)
-            lpp_vavg(ndir) = res_dummy
+            lpp_vavg(ndir) = res_dummy/tot_actv
             call MPI_REDUCE(lpp_vrms(ndir),res_dummy,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,mpi_comm,mpi_ierr)
-            lpp_vrms(ndir) = sqrt(res_dummy)
+            lpp_vrms(ndir) = sqrt(res_dummy/tot_actv)
 
         end do
 

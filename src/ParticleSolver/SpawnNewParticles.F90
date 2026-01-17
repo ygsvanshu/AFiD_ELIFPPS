@@ -17,7 +17,7 @@ subroutine SpawnNewParticles
     integer :: spwn,indx
     integer :: nsrc,nlpp
     real    :: nprv,nnxt
-    real    :: nsta,nend
+    real    :: ntot
     real    :: tsub
 
     ! Find the time just before the beginning of substep
@@ -30,12 +30,11 @@ subroutine SpawnNewParticles
     do nsrc = 1,src_size
         !! Check for non-zero frequency
         if (src_list(nsrc)%src_frq.gt.0.0) then
-            spwn = ceiling(tsub*src_list(nsrc)%src_frq)             ! Integer number of spawn event triggers already from source 
-            nprv = tsub*src_list(nsrc)%src_frq                      ! Fractional number of spawn event triggers before beginning of substep
-            nnxt = time*src_list(nsrc)%src_frq                      ! Fractional number of spawn event triggers until end of substep
-            nsta = src_list(nsrc)%src_sta*src_list(nsrc)%src_frq    ! Fractional number of spawn event triggers from source start time
-            nend = src_list(nsrc)%src_end*src_list(nsrc)%src_frq    ! Fractional number of spawn event triggers until source end time
-            do while (((real(spwn).ge.nprv).and.(real(spwn).lt.nnxt)).and.((real(spwn).ge.nsta).and.(real(spwn).le.nend)))
+            nprv = (tsub - src_list(nsrc)%src_sta)*src_list(nsrc)%src_frq                   ! Fractional number of spawn event triggers before beginning of substep
+            nnxt = (time - src_list(nsrc)%src_sta)*src_list(nsrc)%src_frq                   ! Fractional number of spawn event triggers until end of substep
+            ntot = (src_list(nsrc)%src_end - src_list(nsrc)%src_sta)*src_list(nsrc)%src_frq ! Fractional number of spawn event triggers until source end time
+            spwn = ceiling(nprv)                                                            ! Integer number of spawn event triggers already from source 
+            do while (((real(spwn).ge.nprv).and.(real(spwn).lt.nnxt)).and.((real(spwn).ge.0).and.(real(spwn).le.ntot)))
                 src_spwn(nsrc) = src_spwn(nsrc) + 1
                 spwn = spwn + 1
             end do
@@ -59,7 +58,7 @@ subroutine SpawnNewParticles
         !! Check for non-zero frequency and non-zero spawned particles
         if ((src_list(nsrc)%src_frq.gt.0.0).and.(src_spwn(nsrc).gt.0)) then
             !!! Get the first spawn trigger instance after the start of substep 
-            spwn = ceiling(tsub*src_list(nsrc)%src_frq)
+            spwn = ceiling((tsub - src_list(nsrc)%src_sta)*src_list(nsrc)%src_frq)
             do nlpp = 1,src_spwn(nsrc)
                 !!!! Update the index at which particle is spawned
                 indx = indx + 1
@@ -74,13 +73,14 @@ subroutine SpawnNewParticles
                 lpp_list(indx)%grm_idx(2) = src_list(nsrc)%grm_idx(2)
                 lpp_list(indx)%grm_idx(3) = src_list(nsrc)%grm_idx(3)
                 !!!! Set the lifetime of particle at injection to a suitable negative value 
-                !!!! Important to keep it negative as this helps ParticleMarchSubstep to detect the spawn and use truncated RK3 
-                lpp_list(indx)%lpp_lft    = tsub - spwn/src_list(nsrc)%src_frq
+                !!!! Important to keep it negative or at least zero as this helps ParticleMarchSubstep to detect the spawn and use truncated RK3 
+                ! lpp_list(indx)%lpp_lft    = (tsub - src_list(nsrc)%src_sta) - ((spwn + nlpp - 1)/src_list(nsrc)%src_frq)
+                lpp_list(indx)%lpp_lft    = 0.0
                 !!!! Initialize particle diameter
                 lpp_list(indx)%lpp_dia    = src_list(nsrc)%src_dia
                 !!!! Initialize particle density
                 lpp_list(indx)%lpp_den    = src_list(nsrc)%src_den
-                !!!! Initialize particle Reynolds number (will be overwritten during ParticleMarchSubstep)
+                !!!! Initialize particle Reynolds number
                 lpp_list(indx)%lpp_den    = src_list(nsrc)%src_dia*norm2(src_list(nsrc)%src_vel)*rey
                 !!!! Initialize particle position to source position
                 lpp_list(indx)%lpp_pos(1) = src_list(nsrc)%src_pos(1)

@@ -18,11 +18,10 @@ subroutine ReadParticles
     implicit none
 
     character*200                                   :: dsetname,filename
-    character*8                                     :: charsnap
     logical                                         :: locl,exists
     integer                                         :: lnum,rnum
     integer                                         :: mloc,tint
-    integer                                         :: lppr,lpps,lppt
+    integer                                         :: lppr,lppt
     integer                                         :: lpst,lpen
     type(particle_data)                             :: tmpp
     type(particle_data), allocatable, dimension(:)  :: rlpp

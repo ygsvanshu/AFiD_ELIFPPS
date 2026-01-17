@@ -48,8 +48,9 @@ subroutine ReadParticleSources
         end do
         close(99)
 
-        ! Allocate required amount of space in the source buffer
+        ! Allocate required amount of space in the source buffer and spawn count buffer
         allocate(src_list(src_size))
+        allocate(src_spwn(src_list))
 
         ! Actually read the sources
         open(99, file=trim(filename))
@@ -61,7 +62,7 @@ subroutine ReadParticleSources
                 !! Check if the source is local to the pencil/process
                 call CheckIsSourceLocal(nsrc,nloc)
                 if (nloc) then
-                    !!! Update the nozzle index
+                    !!! Update the source index
                     nsrc%src_idx = numsrc
                     !!! Find and update cell indices for c-grid (nodes)
                     call GetLocationCellIndex(nsrc%src_pos(1),xc(xstart(1)  :xend(1)+1),xstart(1)  ,xend(1)+1,nsrc%grc_idx(1))
@@ -73,7 +74,7 @@ subroutine ReadParticleSources
                     call GetLocationCellIndex(nsrc%src_pos(3),zm(xstart(3)-1:xend(3)+1),xstart(3)-1,xend(3)+1,nsrc%grm_idx(3))
                     !!! Set the current source in the list
                     src_list(numsrc) = nsrc
-                    !!! Incriment the index of source list
+                    !!! Increment the index of source list
                     numsrc = numsrc + 1
                 end if
             end if

@@ -77,7 +77,7 @@ subroutine InitMovie
 
     implicit none
 
-    logical         :: exists
+    logical         :: existx,existy,existz
     logical         :: savevx,savevy,savevz
     logical         :: savepr
     logical         :: saveox,saveoy,saveoz
@@ -95,8 +95,8 @@ subroutine InitMovie
         if (ismaster) then
 
             filename = trim("Results/movie_slices_x.h5")
-            inquire(file=filename, exist=exists)
-            if (exists) then
+            inquire(file=filename, exist=existx)
+            if (existx) then
                 dsetname = trim("/runs")
                 call HdfSerialReadIntScalar(filename,dsetname,rnum)
                 mnum = max(mnum,rnum)
@@ -106,8 +106,8 @@ subroutine InitMovie
             end if
             
             filename = trim("Results/movie_slices_y.h5")
-            inquire(file=filename, exist=exists)
-            if (exists) then
+            inquire(file=filename, exist=existy)
+            if (existy) then
                 filename = filename
                 dsetname = trim("/runs")
                 call HdfSerialReadIntScalar(filename,dsetname,rnum)
@@ -118,8 +118,8 @@ subroutine InitMovie
             end if
 
             filename = trim("Results/movie_slices_z.h5")
-            inquire(file=filename, exist=exists)
-            if (exists) then
+            inquire(file=filename, exist=existz)
+            if (existz) then
                 filename = filename
                 dsetname = trim("/runs")
                 call HdfSerialReadIntScalar(filename,dsetname,rnum)
@@ -129,8 +129,10 @@ subroutine InitMovie
                 snpm = max(snpm,rnum)
             end if
 
-            mnum = mnum + 1
-            snpm = snpm + 1
+            if (existx.or.existy.or.existz) then
+                mnum = mnum + 1
+                snpm = snpm + 1
+            end if
 
         end if
 
@@ -143,23 +145,23 @@ subroutine InitMovie
         if (ismaster) then
 
             filename = trim("Results/movie_slices_x.h5")
-            inquire(file=filename, exist=exists)
-            if (exists) call HdfClean(filename)
+            inquire(file=filename, exist=existx)
+            if (existx) call HdfClean(filename)
             filename = trim("Results/movie_slices_y.h5")
-            inquire(file=filename, exist=exists)
-            if (exists) call HdfClean(filename)
+            inquire(file=filename, exist=existy)
+            if (existy) call HdfClean(filename)
             filename = trim("Results/movie_slices_z.h5")
-            inquire(file=filename, exist=exists)
-            if (exists) call HdfClean(filename)
+            inquire(file=filename, exist=existz)
+            if (existz) call HdfClean(filename)
 
         end if
 
     end if
 
     filename = trim("Inputs/movie_slices_x.in")
-    inquire(file=filename, exist=exists)
+    inquire(file=filename, exist=existx)
 
-    if (exists) then
+    if (existx) then
 
         call GetLines(filename,nlines)
 
@@ -218,9 +220,9 @@ subroutine InitMovie
     end if
  
     filename = trim("Inputs/movie_slices_y.in")
-    inquire(file=filename, exist=exists)
+    inquire(file=filename, exist=existy)
 
-    if (exists) then
+    if (existy) then
 
         call GetLines(filename,nlines)
 
@@ -279,9 +281,9 @@ subroutine InitMovie
     end if
 
     filename = trim("Inputs/movie_slices_z.in")
-    inquire(file=filename, exist=exists)
+    inquire(file=filename, exist=existz)
 
-    if (exists) then
+    if (existz) then
 
         call GetLines(filename,nlines)
 

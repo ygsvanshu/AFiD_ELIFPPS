@@ -14,7 +14,8 @@ subroutine SpawnNewParticles
 
     implicit none
 
-    integer :: spwn
+    integer :: spwn,indx
+    integer :: nsrc,nlpp
     real    :: nprv,nnxt
     real    :: nsta,nend
     real    :: tsub

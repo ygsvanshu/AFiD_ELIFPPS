@@ -74,14 +74,13 @@ subroutine SpawnNewParticles
                 lpp_list(indx)%grm_idx(3) = src_list(nsrc)%grm_idx(3)
                 !!!! Set the lifetime of particle at injection to a suitable negative value 
                 !!!! Important to keep it negative or at least zero as this helps ParticleMarchSubstep to detect the spawn and use truncated RK3 
-                ! lpp_list(indx)%lpp_lft    = (tsub - src_list(nsrc)%src_sta) - ((spwn + nlpp - 1)/src_list(nsrc)%src_frq)
-                lpp_list(indx)%lpp_lft    = 0.0
+                lpp_list(indx)%lpp_lft    = tsub - src_list(nsrc)%src_sta - ((spwn + nlpp - 1)/src_list(nsrc)%src_frq)
                 !!!! Initialize particle diameter
                 lpp_list(indx)%lpp_dia    = src_list(nsrc)%src_dia
                 !!!! Initialize particle density
                 lpp_list(indx)%lpp_den    = src_list(nsrc)%src_den
                 !!!! Initialize particle Reynolds number
-                lpp_list(indx)%lpp_den    = src_list(nsrc)%src_dia*norm2(src_list(nsrc)%src_vel)*rey
+                lpp_list(indx)%lpp_rey    = src_list(nsrc)%src_dia*norm2(src_list(nsrc)%src_vel)*rey
                 !!!! Initialize particle position to source position
                 lpp_list(indx)%lpp_pos(1) = src_list(nsrc)%src_pos(1)
                 lpp_list(indx)%lpp_pos(2) = src_list(nsrc)%src_pos(2) 

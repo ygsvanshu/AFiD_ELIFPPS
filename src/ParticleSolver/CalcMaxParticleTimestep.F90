@@ -34,13 +34,6 @@ subroutine CalcMaxPDT(instPDT)
         !! Ensure that the timestep is at most a fixed fraction of the particle response timescale
         instPDT = max(instPDT,((18.0/(lpp_list(nlpp)%lpp_den*lpp_list(nlpp)%lpp_dia*lpp_list(nlpp)%lpp_dia*rey))/lpp_tlim))
     end do
-    ! Ensure that spawning new particles is resolved temporally
-    ! (i.e., the maximum duration of the timestep is limited to until the next spawn event)
-    ! Loop over all the active sources
-    do nsrc = 1,src_size
-        ! Get the closest instant of next spawn time that is greater than spawn tolerance and use that to set max step size
-        if ((src_list(nsrc)%src_sta - time).ge.lpp_stol) instPDT = max(instPDT,1.0/(src_list(nsrc)%src_sta - time))
-    end do
 
     call MpiAllMaxRealScalar(instPDT,res_dummy)
     instPDT = res_dummy

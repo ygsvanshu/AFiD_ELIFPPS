@@ -101,23 +101,13 @@ subroutine UpdateParticleGridIndices(p)
 
 end subroutine UpdateParticleGridIndices 
 
-subroutine UpdateParticleAcceleration(p) 
+subroutine InitParticleAcceleration(p) 
 
-    use param
-    use local_arrays, only: vx,vy,vz
-    use lagrangian_point_particle, only: particle_data,lpp_grav
+    use lagrangian_point_particle, only: particle_data
 
     implicit none
 
     type(particle_data), intent(inout)  :: p
-
-    integer                             :: im,jm,km
-    integer                             :: ip,jp,kp
-
-    real                                :: cfxm,cfym,cfzm
-    real                                :: cfxp,cfyp,cfzp
-    real                                :: slvx,slvy,slvz
-    real                                :: svel,srey,pcfd,cvol
 
     ! Store old acceleration
     p%acc_old(1) = p%acc_now(1)
@@ -129,23 +119,113 @@ subroutine UpdateParticleAcceleration(p)
     p%acc_now(2) = 0.0
     p%acc_now(3) = 0.0
 
-    ! Add fluid drag
-    call CalcApplyParticleDrag(p)
+    return
+
+end subroutine InitParticleAcceleration
+
+subroutine AddParticleAccelerationGravity(p)
+
+    use lagrangian_point_particle
+
+    implicit none
+
+    type(particle_data), intent(inout)  :: p
 
     ! Add gravitational forces
     p%acc_now(1) = p%acc_now(1) + (1.0 - 1.0/p%lpp_den)*lpp_grav(1)
     p%acc_now(2) = p%acc_now(2) + (1.0 - 1.0/p%lpp_den)*lpp_grav(2)
     p%acc_now(3) = p%acc_now(3) + (1.0 - 1.0/p%lpp_den)*lpp_grav(3)
 
-    ! Add electrostatic forces if necesssary and update ... an eulerian electric field? idk ¯\_(ツ)_/¯ 
+end subroutine AddParticleAccelerationGravity
 
+subroutine AddParticleAccelerationDrag(p,f)
+
+    use decomp_2d
+    use param
+    use local_arrays, only: vx,vy,vz
+    use lagrangian_point_particle
+
+    implicit none
+
+    type(particle_data), intent(inout)  :: p
+    real,intent(out)                    :: f(3,3)
+
+    integer                             :: i
+    real                                :: cffc(3)
+    real                                :: cffm(3)
+    real                                :: slip(3)
+    real                                :: curv(3)
+    real                                :: coef(3)
+    real                                :: forc(3)
+    real                                :: pvol,pcfd
+
+    ! Compute interpolation coefficients
+    call CalcTrilinearInterpolationCoefficients(p,cffm,cffc)
+
+    ! Compute slip velocity
+    !! Initialize slip velocity to zero
+    slip(:) = 0.0
+    !! Apply trilinear interpolation with previously calculated coefficients to get fluid velocity    
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'x',1,vx,slip(1))
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'y',1,vy,slip(2))
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'z',1,vz,slip(3))
+    !! If slip correction is enabled and particle isn't just spawned
+    !! Correct the slip velocity to account for self-induced velocity
+    if (lpp_scor.and.(p%lpp_lft.gt.0)) then
+        !!! Initialize curvatures to zero
+        curv(:) = 0.0
+        !!! Compute the curvature at the particle using trilinear interpolation
+        call ApplyTrilinearInterpolation(p,cffm,cffc,'x',1,lpp_d2vx,curv(1))
+        call ApplyTrilinearInterpolation(p,cffm,cffc,'y',1,lpp_d2vy,curv(2))
+        call ApplyTrilinearInterpolation(p,cffm,cffc,'z',1,lpp_d2vz,curv(3))
+        !!! Compute the correction coefficient using trilinear interpolation on lookup data array 
+        !!! Note: Reynolds number calculated at previous substep is being used to avoid complicated implicit calculation
+        call CalcSlipCorrectionCoefficient(p,'x',coef(1))
+        call CalcSlipCorrectionCoefficient(p,'y',coef(2))
+        call CalcSlipCorrectionCoefficient(p,'z',coef(3))
+        !!! Compute the slip correction using coefficients and curvatures
+        slip(1) = slip(1) + coef(1)*curv(1)
+        slip(2) = slip(2) + coef(2)*curv(2)
+        slip(3) = slip(3) + coef(3)*curv(3)
+    end if
+    !! Subtract fluid velocity from particle velocity to get slip velocity
+    slip(1) = p%lpp_vel(1) - slip(1)
+    slip(2) = p%lpp_vel(2) - slip(2)
+    slip(3) = p%lpp_vel(3) - slip(3)
+
+    ! Compute particle volume
+    pvol = pi*(p%lpp_dia**3.0)/6.0
+    
+    ! Compute paricle Reynolds number using slip velocity
+    p%lpp_rey = rey*p%lpp_dia*norm2(slip)
+
+    ! Calculate drag force and acceleration
+    !! Compute premultiplied drag coefficient using empirical drag models (Stokes/Schiller-Naumann/Morsi-Alexander)
+    call PremultipliedDragCoefficient(p,pcfd)
+    !! Compute drag force using premultiplied drag coefficient
+    forc(1) = (pi*slip(1)*pcfd*p%lpp_dia)/(8.0*rey)
+    forc(2) = (pi*slip(2)*pcfd*p%lpp_dia)/(8.0*rey)
+    forc(3) = (pi*slip(3)*pcfd*p%lpp_dia)/(8.0*rey)
+
+    ! Compute particle accelerations
+    p%acc_now(1) = p%acc_now(1) - e2l_mult*forc(1)/(p%lpp_den*pvol)
+    p%acc_now(2) = p%acc_now(2) - e2l_mult*forc(2)/(p%lpp_den*pvol)
+    p%acc_now(3) = p%acc_now(3) - e2l_mult*forc(3)/(p%lpp_den*pvol)
+
+    ! Compile force result
+    do i = 1,3
+        f(1,i) = cffm(i)
+        f(2,i) = cffc(i)
+        f(3,i) = forc(i)
+    end do
+    
     return
 
-end subroutine UpdateParticleAcceleration
+end subroutine AddParticleAccelerationDrag
 
 subroutine UpdateParticleVelocity(p) 
 
-    use param, only: dt,ga,ro
+    use param, only: al,dt,ga,ro
     use lagrangian_point_particle, only: particle_data
 
     implicit none
@@ -153,10 +233,20 @@ subroutine UpdateParticleVelocity(p)
     type(particle_data), intent(inout)  :: p
     integer                             :: i
 
-    ! Update velocity at next sub step using RK-3 time-stepping scheme
-    do i = 1,3
-        p%lpp_vel(i) = p%lpp_vel(i) + dt*(ga*p%acc_now(i) + ro*p%acc_old(i))
-    end do
+    if (p%lpp_lft.gt.0.0) then
+        ! Particle already exists in the domain
+        ! Update velocity at next sub step using RK-3 time-stepping scheme
+        do i = 1,3
+            p%lpp_vel(i) = p%lpp_vel(i) + dt*(ga*p%acc_now(i) + ro*p%acc_old(i))
+        end do
+    else
+        ! Particle has been freshly spawned
+        ! Update velocity at next sub step using truncated RK-3 (Euler) time-stepping scheme
+        do i = 1,3
+            p%lpp_vel(i) = p%lpp_vel(i) + (p%lpp_lft + al*dt)*p%acc_now(i)
+            p%acc_old(i) = p%acc_now(i)
+        end do
+    end if
 
     return
 
@@ -172,10 +262,19 @@ subroutine UpdateParticlePosition(p)
     type(particle_data), intent(inout)  :: p
     integer                             :: i
 
-    ! Update position at next sub-step assuming constant acceleration during sub-step (equivalent to Crank-Nicolson)
-    do i = 1,3
-        p%lpp_pos(i) = p%lpp_pos(i) + al*dt*(p%lpp_vel(i) - 0.5*dt*(ga*p%acc_now(i) + ro*p%acc_old(i)))
-    end do
+    if (p%lpp_lft.gt.0.0) then
+        ! Particle already exists in the domain
+        ! Update position at next sub-step assuming constant acceleration during sub-step (equivalent to Crank-Nicolson)
+        do i = 1,3
+            p%lpp_pos(i) = p%lpp_pos(i) + al*dt*(p%lpp_vel(i) - 0.5*dt*(ga*p%acc_now(i) + ro*p%acc_old(i)))
+        end do
+    else
+        ! Particle has been freshly spawned
+        ! Update velocity at next sub step using truncated RK-3 (Euler) time-stepping scheme
+        do i = 1,3
+            p%lpp_pos(i) = p%lpp_pos(i) + (p%lpp_lft + al*dt)*(p%lpp_vel(i) - 0.5*dt*(ga*p%acc_now(i) + ro*p%acc_old(i)))
+        end do
+    end if
 
     return
 
@@ -194,6 +293,20 @@ subroutine UpdateParticleLifeTime(p)
     p%lpp_lft = p%lpp_lft + al*dt
 
 end subroutine UpdateParticleLifeTime
+
+subroutine CalculateParticleSubStepTime(p,t)
+
+    use param, only: al,dt
+    use lagrangian_point_particle, only: particle_data
+
+    implicit none
+
+    type(particle_data), intent(in) :: p
+    real, intent(out)               :: t
+
+    t = min(p%lpp_lft,al*dt)
+
+end subroutine CalculateParticleSubStepTime
 
 subroutine CalculateParticleExit(p,q)
 
@@ -290,90 +403,50 @@ subroutine CalculateParticleExit(p,q)
 
 end subroutine CalculateParticleExit
 
-subroutine CalcApplyParticleDrag(p)
+subroutine UpdateParticleSubStepTime(p,q,t)
 
-    use decomp_2d
-    use param
-    use local_arrays, only: vx,vy,vz
+    use lagrangian_point_particle, only: particle_data,particle_exit
+
+    implicit none
+
+    type(particle_data), intent(in) :: p
+    type(particle_exit), intent(in) :: q
+    real, intent(inout)             :: t
+
+    t = t - (p%lpp_lft - q%pex_lft)
+
+end subroutine UpdateParticleSubStepTime
+
+subroutine ApplyParticleDragForce(p,f,t)
+
+    use param, only: al,dt
     use lagrangian_point_particle
 
     implicit none
 
-    type(particle_data), intent(inout)  :: p
-    
-    integer                             :: i,j,k
+    type(particle_data), intent(in) :: p
+    real, intent(in)                :: f(3,3)
+    real, intent(in)                :: t
+    integer                         :: i
+    real                            :: cffc(3)
+    real                            :: cffm(3)
+    real                            :: forc(3)
+    real                            :: frac
 
-    real                                :: cffc(3)
-    real                                :: cffm(3)
-    
-    real                                :: slip(3)
-    real                                :: curv(3)
-    real                                :: coef(3)
-    real                                :: forc(3)
-    real                                :: pvol,pcfd
+    ! Ratio (fraction) of time spent by particle in domain to substep interval
+    frac = t*l2e_mult/(al*dt)
 
-    ! Compute interpolation coefficients
-    call CalcTrilinearInterpolationCoefficients(p,cffm,cffc)
-
-    ! Compute slip velocity
-    !! Initialize slip velocity to zero
-    slip(:) = 0.0
-    !! Apply trilinear interpolation with previously calculated coefficients to get fluid velocity
-    call ApplyTrilinearInterpolation(p,cffm,cffc,'x',1,vx,slip(1))
-    call ApplyTrilinearInterpolation(p,cffm,cffc,'y',1,vy,slip(2))
-    call ApplyTrilinearInterpolation(p,cffm,cffc,'z',1,vz,slip(3))
-
-    !! If slip correction is enabled, correct the slip velocity to account for self-induced velocity
-    if (lpp_scor) then
-        
-        !!! Initialize curvatures to zero
-        curv(:) = 0.0
-        !!! Compute the curvature at the particle using trilinear interpolation
-        call ApplyTrilinearInterpolation(p,cffm,cffc,'x',1,lpp_d2vx,curv(1))
-        call ApplyTrilinearInterpolation(p,cffm,cffc,'y',1,lpp_d2vy,curv(2))
-        call ApplyTrilinearInterpolation(p,cffm,cffc,'z',1,lpp_d2vz,curv(3))
-        !!! Compute the correction coefficient using trilinear interpolation on lookup data array 
-        !!! Note: Reynolds number calculated at previous substep is being used to avoid complicated implicit calculation
-        call CalcSlipCorrectionCoefficient(p,'x',coef(1))
-        call CalcSlipCorrectionCoefficient(p,'y',coef(2))
-        call CalcSlipCorrectionCoefficient(p,'z',coef(3))
-        !!! Compute the slip correction using coefficients and curvatures
-        slip(1) = slip(1) + coef(1)*curv(1)
-        slip(2) = slip(2) + coef(2)*curv(2)
-        slip(3) = slip(3) + coef(3)*curv(3)
-
-    end if
-
-    !! Subtract fluid velocity from particle velocity to get slip velocity
-    slip(1) = p%lpp_vel(1) - slip(1)
-    slip(2) = p%lpp_vel(2) - slip(2)
-    slip(3) = p%lpp_vel(3) - slip(3)
-
-    ! Compute particle volume
-    pvol = pi*(p%lpp_dia**3.0)/6.0
-    
-    ! Compute paricle Reynolds number using slip velocity
-    p%lpp_rey = rey*p%lpp_dia*norm2(slip)
-
-    ! Calculate drag force and acceleration
-    !! Compute premultiplied drag coefficient using empirical drag models (Stokes/Schiller-Naumann/Morsi-Alexander)
-    call PremultipliedDragCoefficient(p,pcfd)
-    !! Compute drag force using premultiplied drag coefficient
-    forc(1) = (pi*slip(1)*pcfd*p%lpp_dia)/(8.0*rey)
-    forc(2) = (pi*slip(2)*pcfd*p%lpp_dia)/(8.0*rey)
-    forc(3) = (pi*slip(3)*pcfd*p%lpp_dia)/(8.0*rey)
-
-    ! Compute particle accelerations
-    p%acc_now(1) = p%acc_now(1) - e2l_mult*forc(1)/(p%lpp_den*pvol)
-    p%acc_now(2) = p%acc_now(2) - e2l_mult*forc(2)/(p%lpp_den*pvol)
-    p%acc_now(3) = p%acc_now(3) - e2l_mult*forc(3)/(p%lpp_den*pvol)
+    ! Decompile interpolation coefficients and force
+    do i = 1,3
+        cffm(i) = f(1,i)
+        cffc(i) = f(2,i)
+        forc(i) = f(3,i)
+    end do
 
     ! Apply opposite drag force on fluid (from Newton's third law)
-    !! Apply trilinear interpolation with previously calculated coefficients to get body forces
-    call ApplyTrilinearInterpolation(p,cffm,cffc,'x',-1,lpp_bdfx,(l2e_mult*forc(1)))
-    call ApplyTrilinearInterpolation(p,cffm,cffc,'y',-1,lpp_bdfy,(l2e_mult*forc(2)))
-    call ApplyTrilinearInterpolation(p,cffm,cffc,'z',-1,lpp_bdfz,(l2e_mult*forc(3)))
-    
-    return
+    ! Apply trilinear interpolation with previously calculated coefficients to get body forces
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'x',-1,lpp_bdfx,frac*forc(1))
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'y',-1,lpp_bdfy,frac*forc(2))
+    call ApplyTrilinearInterpolation(p,cffm,cffc,'z',-1,lpp_bdfz,frac*forc(3))
 
-end subroutine CalcApplyParticleDrag
+end subroutine ApplyParticleDragForce

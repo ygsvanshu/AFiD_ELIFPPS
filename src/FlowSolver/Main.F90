@@ -15,9 +15,6 @@ program AFiD
     integer         :: prow = 0, pcol = 0
     character(100)  :: arg
     logical         :: exists
-    real            :: epsdt
-    integer         :: snap1d,snap2d,snap3d
-    integer         :: snaplp,snapex
 
     call ReadSolverInputs
     call ReadParticleInputs
@@ -97,13 +94,6 @@ program AFiD
     call CheckDivergence(dmax,davg)
     call GlobalQuantities
 
-    epsdt  = dtmin*1E-2
-    snap1d = 1
-    snap2d = 1
-    snap3d = 1
-    snaplp = 1
-    snapex = 1
-
     tin(2) = MPI_WTIME()
 
     call PrintStepInfo(tin(2)-tin(1),tin(2)-tin(1),dmax,davg,0.0)
@@ -156,31 +146,14 @@ program AFiD
 
         end if
 
-        if ((save1d).and.(time.ge.tsta1d).and.((time-dt).lt.real(snap1d*freq1d)).and.((time+epsdt).gt.real(snap1d*freq1d))) then
-            call WriteStatProfiles
-            snap1d = int((time+epsdt)/freq1d) + 1
-        end if
-
-        if ((save2d).and.(time.ge.tsta2d).and.((time-dt).lt.real(snap2d*freq2d)).and.((time+epsdt).gt.real(snap2d*freq2d))) then
-            call WriteMovieSlices
-            snap2d = int((time+epsdt)/freq2d) + 1
-        endif
-
-        if ((save3d).and.(time.ge.tsta3d).and.((time-dt).lt.real(snap3d*freq3d)).and.((time+epsdt).gt.real(snap3d*freq3d))) then
-            call WriteFlowField(.false.)
-            if (particle) call WriteParticles(.false.)
-            snap3d = int((time+epsdt)/freq3d) + 1
-        end if
-
+        if ((save1d).and.(time.ge.tsta1d).and.((int(time/freq1d)).gt.(int((time-dt)/freq1d)))) call WriteStatProfiles
+        if ((save2d).and.(time.ge.tsta2d).and.((int(time/freq2d)).gt.(int((time-dt)/freq2d)))) call WriteMovieSlices
+        if ((save3d).and.(time.ge.tsta3d).and.((int(time/freq3d)).gt.(int((time-dt)/freq3d)))) call WriteFlowField(.false.)
+        
         if (particle) then
-            if ((lpp_save).and.(time.ge.lpp_ssta).and.((time-dt).lt.real(snaplp*lpp_sfrq)).and.((time+epsdt).gt.real(snaplp*lpp_sfrq))) then
-                call WriteParticleHistory
-                snaplp = int((time+epsdt)/lpp_sfrq) + 1
-            end if
-            if ((pex_save).and.(time.ge.pex_ssta).and.((time-dt).lt.real(snapex*pex_sfrq)).and.((time+epsdt).gt.real(snapex*pex_sfrq))) then
-                call WriteExitedParticles
-                snapex = int((time+epsdt)/pex_sfrq) + 1
-            end if
+            if ((save3d).and.(time.ge.tsta3d).and.((int(time/freq3d)).gt.(int((time-dt)/freq3d)))) call WriteParticles(.false.)
+            if ((lpp_save).and.(time.ge.lpp_ssta).and.((int(time/lpp_sfrq)).gt.(int((time-dt)/lpp_sfrq)))) call WriteParticleHistory
+            if ((pex_save).and.(time.ge.pex_ssta).and.((int(time/pex_sfrq)).gt.(int((time-dt)/pex_sfrq)))) call WriteExitedParticles
         end if
 
         inquire(file=abortfile,exist=exists)

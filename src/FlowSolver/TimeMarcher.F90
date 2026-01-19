@@ -42,7 +42,6 @@ subroutine TimeMarcher
             ! COUPLE LAGRANGIAN POINT PARTICLES
             call ParticleMarchSubstep
             call AddParticleForces
-            ! PrintPencilParticleCount ! FOR DEBUGGING
         end if
 
         call ImplicitAndUpdateVX

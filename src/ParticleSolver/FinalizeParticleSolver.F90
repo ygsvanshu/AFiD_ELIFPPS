@@ -17,6 +17,7 @@ subroutine FinalizeParticleSolver !{DONE}!
 
     if (allocated(lpp_list)) deallocate(lpp_list)
     if (allocated(src_list)) deallocate(src_list)
+    if (allocated(src_spwn)) deallocate(src_spwn)
     if (allocated(pex_list)) deallocate(pex_list)
 
     if (allocated(bfm_send)) deallocate(bfm_send)

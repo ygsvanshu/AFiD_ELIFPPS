@@ -17,8 +17,8 @@ module lagrangian_point_particle
     ! Main derived datatype for the particle data
     type particle_data
         integer             :: src_idx      ! Index of source from which particle has been injected
-        integer             :: grc_idx(3)   ! Grid cell indices on the [xm,ym,zm] grid
-        integer             :: grm_idx(3)   ! Grid cell indices on the [xc,yc,zc] grid
+        integer             :: grc_idx(3)   ! Grid cell indices on the [xc,yc,zc] grid
+        integer             :: grm_idx(3)   ! Grid cell indices on the [xm,ym,zm] grid
         real                :: lpp_lft      ! Life time of particle since injection
         real                :: lpp_dia      ! Diameter of particle
         real                :: lpp_den      ! Density of particle
@@ -32,8 +32,8 @@ module lagrangian_point_particle
     ! Derived datatype for the particle source
     type particle_source
         integer             :: src_idx      ! Source index (in the order as entered in the file "particle_soures.in")
-        integer             :: grc_idx(3)   ! Grid cell indices on the [xm,ym,zm] grid
-        integer             :: grm_idx(3)   ! Grid cell indices on the [xc,yc,zc] grid
+        integer             :: grc_idx(3)   ! Grid cell indices on the [xc,yc,zc] grid
+        integer             :: grm_idx(3)   ! Grid cell indices on the [xm,ym,zm] grid
         real                :: src_sta      ! Injection start time instance of the source
         real                :: src_end      ! Injection stop time instance of the source
         real                :: src_frq      ! Injection frequency of the source
@@ -76,7 +76,6 @@ module lagrangian_point_particle
     real                                                :: pex_ssta     ! Start time for saving particle exit events 
     real                                                :: pex_sfrq     ! Save time interval for particle exit events
 
-
     ! MPI related module parameters
 
     integer                                             :: mpi_pdat     ! MPI type for particle data
@@ -101,7 +100,6 @@ module lagrangian_point_particle
     integer                                             :: pex_actv     ! Number of active exit events in the buffer pex_list for current pencil/process
     integer                                             :: lpp_spwn     ! Number of spawned particles for current pencil/process
     integer                                             :: lpp_exit     ! Number of exited particles for current pencil/process
-    integer                                             :: sub_exit     ! Number of exited particles at current substep for current pencil/process
     integer                                             :: lpp_snap     ! The number of particle history snapshots 
 
     ! Source and particle arrays
@@ -111,6 +109,7 @@ module lagrangian_point_particle
     type(particle_data), allocatable, dimension(:)      :: bfp_send     ! Send buffer for particles on the end side 
 
     type(particle_source), allocatable, dimension(:)    :: src_list     ! Buffer to store all particle sources that can add to the pencil/process
+    integer, allocatable, dimension(:)                  :: src_spwn     ! Buffer to store the spawn counts during substep for each particle source
 
     type(particle_exit), allocatable, dimension(:)      :: pex_list     ! Main buffer for all exit events stored per pencil/process
 

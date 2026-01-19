@@ -146,14 +146,14 @@ program AFiD
 
         end if
 
-        if ((save1d).and.(time.ge.tsta1d).and.((int((time+0.5*dt)/freq1d)).gt.(int((time-0.5*dt)/freq1d)))) call WriteStatProfiles
-        if ((save2d).and.(time.ge.tsta2d).and.((int((time+0.5*dt)/freq2d)).gt.(int((time-0.5*dt)/freq2d)))) call WriteMovieSlices
-        if ((save3d).and.(time.ge.tsta3d).and.((int((time+0.5*dt)/freq3d)).gt.(int((time-0.5*dt)/freq3d)))) call WriteFlowField(.false.)
+        if ((save1d).and.(time.ge.tsta1d).and.((int(time/freq1d)).gt.(int((time-dt)/freq1d)))) call WriteStatProfiles
+        if ((save2d).and.(time.ge.tsta2d).and.((int(time/freq2d)).gt.(int((time-dt)/freq2d)))) call WriteMovieSlices
+        if ((save3d).and.(time.ge.tsta3d).and.((int(time/freq3d)).gt.(int((time-dt)/freq3d)))) call WriteFlowField(.false.)
         
         if (particle) then
-            if ((save3d).and.(time.ge.tsta3d).and.((int((time+0.5*dt)/freq3d)).gt.(int((time-0.5*dt)/freq3d)))) call WriteParticles(.false.)
-            if ((lpp_save).and.(time.ge.lpp_ssta).and.((int((time+0.5*dt)/lpp_sfrq)).gt.(int((time-0.5*dt)/lpp_sfrq)))) call WriteParticleHistory
-            if ((pex_save).and.(time.ge.pex_ssta).and.((int((time+0.5*dt)/pex_sfrq)).gt.(int((time-0.5*dt)/pex_sfrq)))) call WriteExitedParticles
+            if ((save3d).and.(time.ge.tsta3d).and.((int(time/freq3d)).gt.(int((time-dt)/freq3d)))) call WriteParticles(.false.)
+            if ((lpp_save).and.(time.ge.lpp_ssta).and.((int(time/lpp_sfrq)).gt.(int((time-dt)/lpp_sfrq)))) call WriteParticleHistory
+            if ((pex_save).and.(time.ge.pex_ssta).and.((int(time/pex_sfrq)).gt.(int((time-dt)/pex_sfrq)))) call WriteExitedParticles
         end if
 
         inquire(file=abortfile,exist=exists)

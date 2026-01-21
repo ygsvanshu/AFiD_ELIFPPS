@@ -17,9 +17,10 @@ subroutine ParticleMarchSubstep
     implicit none
 
     logical                         :: lbound,gbound
-    integer                         :: np,nq
+    integer                         :: np
     real                            :: nfrc(3,3)
     real                            :: dlft
+    type(particle_exit)             :: tpex
 
     ! Reset previous body force calculation
     lpp_bdfx(:,:,:) = 0.0
@@ -40,31 +41,30 @@ subroutine ParticleMarchSubstep
 
     ! Loop over all existing active particles
     np = 1
-    nq = 1
     do while(np.le.lpp_actv)
         !! Check if particle is exclusive to the pencil/process
         call CheckIsParticleLocal(lpp_list(np),lbound)
         if (lbound) then
             !!! Update particle
-            call UpdateParticleGridIndices(lpp_list(np))                        ! Update cell-indices of the particles at their new positions
-            call InitParticleAcceleration(lpp_list(np))                         ! Initialize particle acceleration
-            call AddParticleAccelerationDrag(lpp_list(np),nfrc)                 ! Add fluid drag forces to particle acceleration   
-            call AddParticleAccelerationGravity(lpp_list(np))                   ! Add particle acceleration due to particle apparent weight   
-            call UpdateParticleVelocity(lpp_list(np))                           ! Update velocity of particles using 3rd order Runge-Kutta time-stepping scheme
-            call UpdateParticlePosition(lpp_list(np))                           ! Update position of particles using (2nd order) Crank-Nicolson time-stepping scheme
-            call UpdateParticleLifeTime(lpp_list(np))                           ! Update life time of particles (time since injection)
-            call CalculateParticleSubStepTime(lpp_list(np),dlft)                ! Calculate time spent by particle in the domain during the substep
-            call CheckIsParticleGlobal(lpp_list(np),gbound)                     ! Check if particle is going to exit the simulation domain
+            call UpdateParticleGridIndices(lpp_list(np))                ! Update cell-indices of the particles at their new positions
+            call InitParticleAcceleration(lpp_list(np))                 ! Initialize particle acceleration
+            call AddParticleAccelerationDrag(lpp_list(np),nfrc)         ! Add fluid drag forces to particle acceleration   
+            call AddParticleAccelerationGravity(lpp_list(np))           ! Add particle acceleration due to particle apparent weight   
+            call UpdateParticleVelocity(lpp_list(np))                   ! Update velocity of particles using 3rd order Runge-Kutta time-stepping scheme
+            call UpdateParticlePosition(lpp_list(np))                   ! Update position of particles using (2nd order) Crank-Nicolson time-stepping scheme
+            call UpdateParticleLifeTime(lpp_list(np))                   ! Update life time of particles (time since injection)
+            call CalculateParticleSubStepTime(lpp_list(np),dlft)        ! Calculate time spent by particle in the domain during the substep
+            call CheckIsParticleGlobal(lpp_list(np),gbound)             ! Check if particle is going to exit the simulation domain
             if (.not.gbound) then
-                call CalculateParticleExit(lpp_list(np),pex_list(nq))           ! Calculate the exit primarily to know the exit time. This is fine because pex_list is always initialized with size(1)
-                call UpdateParticleSubStepTime(lpp_list(np),pex_list(nq),dlft)  ! Update time spent by particle in the domain during the substep
+                call CalculateParticleExit(lpp_list(np),tpex)           ! Calculate the exit in a temporary event buffer primarily to know the exit time.
+                call UpdateParticleSubStepTime(lpp_list(np),tpex,dlft)  ! Update time spent by particle in the domain during the substep
                 if ((pex_save).and.(time.ge.pex_ssta)) then
-                    nq = nq + 1                                                 ! Update index only if the exit events are to be written, otherwise overwrite the first index
-                    pex_actv = pex_actv + 1                                     ! Update total number of exit events are to be written
-                    lpp_exit = lpp_exit + 1                                     ! Update count of exit events
+                    lpp_exit = lpp_exit + 1                             ! Update count of exit events
+                    pex_actv = pex_actv + 1                             ! Update total number of exit events are to be written
+                    pex_list(pex_actv)  = tpex                          ! Update the new exit event are to be written
                 end if
             end if
-            call ApplyParticleDragForce(lpp_list(np),nfrc,dlft)                 ! Apply the drag force from the particle on the Eulerian field
+            call ApplyParticleDragForce(lpp_list(np),nfrc,dlft)         ! Apply the drag force from the particle on the Eulerian field
             !!! Proceed to the next particle
             np = np + 1
         else

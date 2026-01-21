@@ -50,6 +50,7 @@ module param
     real            :: rey
     ! 6XX -----------------------
     integer         :: nout
+    real            :: csav
     logical         :: save1d,save2d,save3d
     real            :: tsta1d,tsta2d,tsta3d
     real            :: freq1d,freq2d,freq3d

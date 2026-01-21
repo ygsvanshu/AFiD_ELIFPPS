@@ -47,11 +47,8 @@ subroutine SpawnNewParticles
     ! Find index position at which spawned particles must be added
     indx = lpp_actv
 
-    ! Update the total active particle count
-    lpp_actv = lpp_actv + sum(src_spwn)
-
     ! If needed, extend the particle list
-    call ExtendParticleListBuffer(lpp_actv)
+    call ExtendParticleListBuffer(lpp_actv + sum(src_spwn))
 
     ! Loop over sources and initialize spawned particles
     do nsrc = 1,src_size
@@ -100,5 +97,8 @@ subroutine SpawnNewParticles
             end do
         end if
     end do
+
+    ! Update the total active particle count
+    lpp_actv = lpp_actv + sum(src_spwn)
 
 end subroutine SpawnNewParticles

@@ -208,6 +208,11 @@ subroutine ReadSolverInputs
             read (ss(1),*) nout
 
         else if (line(1:3) == '602') then
+            !###### PERIODICALLY SAVE CONTINUA CHECKPOINT ######
+            call scan_string(line,1,ss,narg)
+            read (ss(1),*) csav
+
+        else if (line(1:3) == '603') then
             !###### 1D STATISTICAL PROFILES ######
             call scan_string(line,3,ss,narg)
             stringdummy1 = ss(1)
@@ -223,7 +228,7 @@ subroutine ReadSolverInputs
             read (ss(2),*) tsta1d
             read (ss(3),*) freq1d
 
-        else if (line(1:3) == '603') then
+        else if (line(1:3) == '604') then
             !###### 2D MOVIE SLICES ######
             call scan_string(line,3,ss,narg)
             stringdummy1 = ss(1)
@@ -239,7 +244,7 @@ subroutine ReadSolverInputs
             read (ss(2),*) tsta2d
             read (ss(3),*) freq2d
 
-        else if (line(1:3) == '604') then
+        else if (line(1:3) == '605') then
             !###### 3D FLOW FIELD SNAPSHOTS ######
             call scan_string(line,3,ss,narg)
             stringdummy1 = ss(1)

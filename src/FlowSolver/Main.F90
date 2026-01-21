@@ -156,6 +156,11 @@ program AFiD
             if ((pex_save).and.(time.ge.pex_ssta).and.((int(time/pex_sfrq)).gt.(int((time-dt)/pex_sfrq)))) call WriteExitedParticles
         end if
 
+        if ((int(ti(2)/csav)).gt.(int(ti(1)/csav))) then
+            call WriteFlowField(.true.)
+            if (particle) call WriteParticles(.true.)
+        end if
+
         inquire(file=abortfile,exist=exists)
         if (exists) errorcode = 222
 

@@ -130,7 +130,7 @@ subroutine PrintStepInfo(wct,ela,dmax,davg,icfl)
         sc1 = int(res)
 
         if ((time.gt.0.0).and.(ntime.gt.0)) then
-            eta = min( ela*((tmax - time)/time), ela*(real(ntst - ntime)/real(ntime)) )
+            eta = min( ela*((tmax - time)/(time - tsta)), ela*(real(ntst - ntime)/real(ntime)) )
         else
             eta = walltimemax
         end if

@@ -14,7 +14,7 @@ program AFiD
     real            :: ts
     integer         :: prow = 0, pcol = 0
     character(100)  :: arg
-    logical         :: exists
+    logical         :: exists,cwrite
 
     call ReadSolverInputs
     call ReadParticleInputs
@@ -71,20 +71,22 @@ program AFiD
 
     call PrintCaseInfo
     if (particle) call PrintParticleCaseInfo
-
+    
     if (nread) then
         if (ismaster) write (6,*) 'Reading initial condition from file'
         call ReadFlowField
         if (particle) call ReadParticles
     else
         if (ismaster) write (6,*) 'Creating initial condition'
-        ntime = 0
         time = 0.0
         call CreateInitialConditions
         if (ismaster) write (6,*) 'Writing initial condition to file'
         call WriteFlowField(.false.)
         if (particle) call WriteParticles(.false.)
     end if
+
+    ntime = 0
+    tsta  = time
 
     call update_halo(vx,lvlhalo)
     call update_halo(vy,lvlhalo)
@@ -156,9 +158,12 @@ program AFiD
             if ((pex_save).and.(time.ge.pex_ssta).and.((int(time/pex_sfrq)).gt.(int((time-dt)/pex_sfrq)))) call WriteExitedParticles
         end if
 
-        if ((int(ti(2)/csav)).gt.(int(ti(1)/csav))) then
+        if (ismaster.and.((int(ti(2)/csav)).gt.(int(ti(1)/csav)))) cwrite = .true.
+        call MPI_BCAST(cwrite,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpi_ierr)
+        if (cwrite) then
             call WriteFlowField(.true.)
             if (particle) call WriteParticles(.true.)
+            cwrite = .false.
         end if
 
         inquire(file=abortfile,exist=exists)

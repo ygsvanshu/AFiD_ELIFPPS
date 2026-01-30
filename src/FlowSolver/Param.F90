@@ -60,7 +60,7 @@ module param
     integer                 :: nx, ny, nz
     integer                 :: ntime,ns
 
-    real                    :: time
+    real                    :: time,tsta
     real                    :: pi = 2.0*asin(1.0)
     real                    :: al,ga,ro
 

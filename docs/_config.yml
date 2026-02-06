@@ -5,13 +5,14 @@ remote_theme: pmarsceill/just-the-docs
 plugins:
   - jekyll-remote-theme
 
-# Math support
+# Enable math (Just-the-Docs / MathJax v3)
+math: true
+
+# Markdown
 markdown: kramdown
 kramdown:
-  math_engine: mathjax
   syntax_highlighter: rouge
   input: GFM
-  parse_block_html: true
 
 # Permalinks
 permalink: pretty

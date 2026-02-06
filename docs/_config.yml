@@ -9,8 +9,10 @@ plugins:
 markdown: kramdown
 kramdown:
   input: GFM
-  math_engine: katex
   parse_block_html: true
+
+just_the_docs:
+  extra_head: mathjax.html
 
 # Permalinks
 permalink: pretty

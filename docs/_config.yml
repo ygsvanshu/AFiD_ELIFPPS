@@ -10,5 +10,11 @@ plugins:
 # Math support
 math: mathjax  # enables MathJax v3 automatically
 
+# Markdown
+markdown: kramdown
+kramdown:
+  math_engine: nil   # disable default math rendering; we use MathJax
+  input: GFM
+
 # Permalinks
 permalink: pretty

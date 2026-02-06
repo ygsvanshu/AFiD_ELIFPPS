@@ -1,6 +1,7 @@
 ---
 title: Numerical methods
 nav_order: 5
+has_toc: false
 ---
 
 # Numerical methods

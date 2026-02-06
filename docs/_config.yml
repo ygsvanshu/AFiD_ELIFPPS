@@ -1,9 +1,9 @@
 title: Documentation
 description: Latest docs
 
-remote_theme: pmarsceill/just-the-docs
-plugins:
-  - jekyll-remote-theme
+# remote_theme: pmarsceill/just-the-docs
+# plugins:
+#   - jekyll-remote-theme
 
 # Math support
 markdown: kramdown

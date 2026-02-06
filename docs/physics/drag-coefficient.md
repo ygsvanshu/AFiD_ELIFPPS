@@ -5,7 +5,9 @@ The steady state drag coefficient in [governing differential equations](governin
 ## Stokes
 
 The Stokes drag coefficient model derived from the linear drag on a sphere in Stokes flow given by
-$$C_d(Re_p) = \frac{24}{Re_p},$$
+$$
+C_d(Re_p) = \frac{24}{Re_p},
+$$
 is only valid for small Reynolds numbers in the Stokes regime, typically for $Re_p \ll 1$.
 
 ## Schiller-Naumann

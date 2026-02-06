@@ -1,8 +1,3 @@
----
-layout: default
-title: Usage
----
-
 # Usage
 
 This section contains more details beyond [getting started](../getting-started.md) on how to use the code and consists of information on

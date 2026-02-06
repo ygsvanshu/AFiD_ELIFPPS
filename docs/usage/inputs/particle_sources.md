@@ -1,4 +1,4 @@
-# particle_sources.in
+# `particle_sources.in`
 
 This file essentially contains a table with details of particle sources in the following format
 

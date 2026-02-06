@@ -1,8 +1,3 @@
----
-layout: default
-title: Roadmap
----
-
 # Limitations and Roadmap
 
 This document summarizes known limitations of the current

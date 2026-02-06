@@ -1,8 +1,3 @@
----
-layout: default
-title: DragCoefficient
----
-
 # Drag coefficient models
 
 The steady state drag coefficient in [governing differential equations](governing-equations.md) is modelled as the drag coefficient of a sphere of a given diameter subject to free stream flow. Several drag coefficient models can be found in literature, but three of these are implemented in the code currently. All of these drag coefficients are given as functions of the particle Reynolds number $Re_p \equiv U_\infty d_p/ \nu$ with $U_\infty$ being the free stream velocity, $d_p$ being the particle diameter, and $\nu$ being the kinematic viscosity of air.

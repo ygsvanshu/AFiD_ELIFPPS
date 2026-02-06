@@ -1,8 +1,3 @@
----
-layout: default
-title: Documentation
----
-
 # AFiD_ELIFPPS Documentation
 
 This documentation is organized into three parts:

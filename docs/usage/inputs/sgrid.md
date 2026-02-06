@@ -1,4 +1,4 @@
-# sgrid.in
+# `sgrid.in`
 
 This file consists of a list of coordinates for a custom user generated grid when the input switch `STRTYP` is set to any value other than `1`, `2`, `3`, or `4`.
 

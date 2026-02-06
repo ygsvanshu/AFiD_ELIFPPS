@@ -1,8 +1,3 @@
----
-layout: default
-title: Overview
----
-
 # Overview
 
 AFiD_ELIFPPS is a numerical solver for

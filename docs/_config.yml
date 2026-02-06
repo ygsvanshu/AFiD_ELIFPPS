@@ -8,7 +8,8 @@ plugins:
 # Math support
 markdown: kramdown
 kramdown:
-  input: GFM
+  input: kramdown
+  math_engine: mathjax
   parse_block_html: true
 
 just_the_docs:

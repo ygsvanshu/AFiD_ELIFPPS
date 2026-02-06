@@ -17,21 +17,29 @@ just_the_docs:
     <script type="text/javascript" id="MathJax-script" async
       src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
     </script>
+    <script type="text/javascript">
+      window.MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+      };
+    </script>
 
 # Permalinks
 permalink: pretty
 
 # Navigation
-nav:
-  - Home: index.md
-  - Overview: overview.md
-  - Getting started: getting-started.md
-  - Usage: usage.md
-  - Physics: physics/index.md
-    - Boundary conditions: physics/boundary-conditions.md
-    - Drag coefficient: physics/drag-coefficient.md
-    - Governing differential equations : physics/governing-equations.md
-    - Nondimensionalization: physics/nondimensionalization.md
-  - Numerics: numerics/index.md
-  - Validation: validation.md
-  - API Reference: api.md
+# nav:
+#   - Home: index.md
+#   - Overview: overview.md
+#   - Getting started: getting-started.md
+#   - Usage: usage.md
+#   - Physics: physics/index.md
+#     - Boundary conditions: physics/boundary-conditions.md
+#     - Drag coefficient: physics/drag-coefficient.md
+#     - Governing differential equations : physics/governing-equations.md
+#     - Nondimensionalization: physics/nondimensionalization.md
+#   - Numerics: numerics/index.md
+#   - Validation: validation.md
+#   - API Reference: api.md

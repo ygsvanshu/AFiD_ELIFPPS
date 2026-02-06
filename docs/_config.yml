@@ -8,7 +8,9 @@ plugins:
 # Math support
 markdown: kramdown
 kramdown:
-    math_engine: katex
+  input: GFM
+  math_engine: katex
+  parse_block_html: true
 
 # Permalinks
 permalink: pretty

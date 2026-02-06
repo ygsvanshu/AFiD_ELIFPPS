@@ -9,7 +9,6 @@ plugins:
 markdown: kramdown
 kramdown:
   math_engine: mathjax
-  math_engine_opts: ""
   syntax_highlighter: rouge
   input: GFM
   parse_block_html: true

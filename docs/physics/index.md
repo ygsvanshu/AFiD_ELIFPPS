@@ -1,10 +1,10 @@
 ---
-title: Physical models
+title: Physical model
 nav_order: 4
 has_toc: false
 ---
 
-# Physics
+# Physical model
 
 This section containing the details of the physics being modelled is organized as following:
 

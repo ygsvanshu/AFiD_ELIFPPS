@@ -1,6 +1,6 @@
 ---
 title: Diffusive terms
-parent: Numerical methods
+parent: Numerical method
 nav_order: 6
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: Spatial discretization
-parent: Numerical methods
+parent: Numerical method
 nav_order: 4
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: Drag coefficient models
-parent: Physical models
+parent: Physical model
 nav_order: 4
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: Slip correction
-parent: Numerical methods
+parent: Numerical method
 nav_order: 9
 ---
 

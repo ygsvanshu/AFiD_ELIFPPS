@@ -1,6 +1,6 @@
 ---
 title: Advective terms
-parent: Numerical methods
+parent: Numerical method
 nav_order: 5
 ---
 

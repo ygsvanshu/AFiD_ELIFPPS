@@ -1,6 +1,6 @@
 ---
 title: Pressure solver
-parent: Numerical methods
+parent: Numerical method
 nav_order: 7
 ---
 

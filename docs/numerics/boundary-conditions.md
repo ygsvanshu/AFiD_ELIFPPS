@@ -1,6 +1,6 @@
 ---
 title: Boundary conditions
-parent: Numerical methods
+parent: Numerical method
 nav_order: 8
 ---
 

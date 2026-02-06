@@ -1,6 +1,6 @@
 ---
 title: Asynchronous spawn and exit
-parent: Numerical methods
+parent: Numerical method
 nav_order: 10
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: Time integration
-parent: Numerical methods
+parent: Numerical method
 nav_order: 1
 ---
 

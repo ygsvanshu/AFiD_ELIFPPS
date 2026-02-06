@@ -1,10 +1,10 @@
 ---
-title: Numerical methods
+title: Numerical method
 nav_order: 5
 has_toc: false
 ---
 
-# Numerical methods
+# Numerical method
 
 This section containing the numerics is organized as following:
 

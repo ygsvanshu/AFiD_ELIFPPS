@@ -1,6 +1,6 @@
 ---
 title: Boundary conditions
-parent: Physical models
+parent: Physical model
 nav_order: 3
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: Nondimensionalization
-parent: Physical models
+parent: Physical model
 nav_order: 2
 ---
 

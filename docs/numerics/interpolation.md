@@ -1,6 +1,6 @@
 ---
 title: Trilinear Interpolation
-parent: Numerical methods
+parent: Numerical method
 nav_order: 2
 ---
 

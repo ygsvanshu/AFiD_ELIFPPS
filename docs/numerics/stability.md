@@ -1,6 +1,6 @@
 ---
 title: Stability
-parent: Numerical methods
+parent: Numerical method
 nav_order: 3
 ---
 

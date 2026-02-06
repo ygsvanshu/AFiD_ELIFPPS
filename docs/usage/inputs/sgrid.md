@@ -1,5 +1,5 @@
 ---
-title: solver.in
+title: sgrid.in
 parent: Inputs
 nav_order: 2
 ---

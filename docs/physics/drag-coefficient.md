@@ -26,7 +26,7 @@ works well for particles in gases, especially at moderate particle Reynolds numb
 
 Another empirical formulation by Morsi and Alexander [2] applicable for a large range of particle Reynolds numbers is given by
 $$
-C_d(Re_p) = c_1 + \frac{c_2}{Re_p} + \frac{c_2}{{Re_p}^2},
+C_d(Re_p) = c_1 + \frac{c_2}{Re_p} + \frac{c_2}{Re_p^2},
 $$
 with
 $$

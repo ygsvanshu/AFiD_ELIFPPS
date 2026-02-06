@@ -7,14 +7,16 @@ remote_theme: just-the-docs/just-the-docs
 plugins:
   - jekyll-remote-theme
 
-# Math support
-math: mathjax  # enables MathJax v3 automatically
-
 # Markdown
 markdown: kramdown
 kramdown:
-  math_engine: nil   # disable default math rendering; we use MathJax
-  input: GFM
+  math_engine: nil        # Disable kramdown math (use MathJax)
+  input: GFM              # GitHub Flavored Markdown
+  hard_wrap: false        # Prevents unwanted <br> in display math
+  parse_block_html: true  # Needed if you embed HTML, ensures MathJax inside HTML blocks works.
+
+# Math support
+math: mathjax  # enables MathJax v3 automatically
 
 # Permalinks
 permalink: pretty

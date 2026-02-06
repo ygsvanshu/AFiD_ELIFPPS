@@ -20,3 +20,6 @@ math: mathjax  # enables MathJax v3 automatically
 
 # Permalinks
 permalink: pretty
+
+# Color scheme supports "light" (default) and "dark"
+color_scheme: dark

@@ -5,38 +5,32 @@ The steady state drag coefficient in [governing differential equations](governin
 ## Stokes
 
 The Stokes drag coefficient model derived from the linear drag on a sphere in Stokes flow given by
-
-$$
+\[
 C_d(Re_p) = \frac{24}{Re_p},
-$$
-
+]\
 is only valid for small Reynolds numbers in the Stokes regime, typically for $Re_p \ll 1$.
 
 ## Schiller-Naumann
 
 The model proposed by Schiller and Naumann [1] given by
-
-$$
+\[
 C_D = 
 \begin{cases} 
 \frac{24}{Re}(1 + 0.15 Re^{0.687}) & \text{for} \quad Re_p \leq 1000 \\
 0.44 & \text{for} \quad Re_p > 1000 
 \end{cases}
-$$
-
+]\
 works well for particles in gases, especially at moderate particle Reynolds numbers.
 
 ## Morsi-Alexander
 
 Another empirical formulation by Morsi and Alexander [2] applicable for a large range of particle Reynolds numbers is given by
-
-$$
+\[
 C_d(Re_p) = c_1 + \frac{c_2}{Re_p} + \frac{c_2}{Re_p^2},
-$$
-
+]\
 with
 
-$$
+\[
 \begin{align*}
 c_1 &= 0,      \quad & c_2 &= 24,       \quad & c_3 &= 0       \quad & \text{for} \quad & Re_p < 0.1 \\
 c_1 &= 3.690,  \quad & c_2 &= 22.73,    \quad & c_3 &= 0.0903  \quad & \text{for} \quad & 0.1 \le Re_p < 1 \\
@@ -47,4 +41,4 @@ c_1 &= 0.357,  \quad & c_2 &= 148.62,   \quad & c_3 &= -47500  \quad & \text{for
 c_1 &= 0.46,   \quad & c_2 &= -490.546, \quad & c_3 &= 578700  \quad & \text{for} \quad & 5000 \le Re_p < 10000 \\
 c_1 &= 0.5191, \quad & c_2 &= -1662.5,  \quad & c_3 &= 5416700 \quad & \text{for} \quad & Re_p \ge 10000
 \end{align*}
-$$
+]\

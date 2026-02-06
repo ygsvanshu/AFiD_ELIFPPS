@@ -1,0 +1,7 @@
+title: Documentation
+markdown: kramdown
+
+kramdown:
+  math_engine: mathjax
+
+permalink: pretty

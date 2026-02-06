@@ -1,3 +1,9 @@
+---
+title: Usage
+nav_order: 3
+has_toc: false
+---
+
 # Usage
 
 This section contains more details beyond [getting started](../getting-started.md) on how to use the code and consists of information on

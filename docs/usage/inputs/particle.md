@@ -1,3 +1,9 @@
+---
+title: particle.in
+parent: Inputs
+nav_order: 3
+---
+
 # `particle.in`
 
 This file contains the main input parameters required to run the particle solver. This input file is structured to contain a three digit integer followed by relevant values in single quotes. The three-digit number identifies the input variable(s) being read in, and anything in quotes is read in as the input variable(s).

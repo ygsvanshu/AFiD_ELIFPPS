@@ -1,3 +1,9 @@
+---
+title: particle_sources.in
+parent: Inputs
+nav_order: 3
+---
+
 # `particle_sources.in`
 
 This file essentially contains a table with details of particle sources in the following format

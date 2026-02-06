@@ -1,3 +1,8 @@
+---
+layout: default
+title: BoundaryConditions
+---
+
 # Defining boundary conditions
 
 ## Predefined boundary condition configurations

@@ -1,3 +1,8 @@
+---
+layout: default
+title: References
+---
+
 # References
 
 [1] Maxey, M.R. and Riley, J.J., (1983) 

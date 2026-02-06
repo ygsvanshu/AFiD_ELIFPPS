@@ -6,10 +6,9 @@ plugins:
   - jekyll-remote-theme
 
 # Math support
-math_engine: mathjax
+markdown: kramdown
 kramdown:
-  math_engine: mathjax
-  input: GFM
+    math_engine: katex
 
 # Permalinks
 permalink: pretty

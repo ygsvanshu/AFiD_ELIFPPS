@@ -8,13 +8,7 @@ plugins:
   - jekyll-remote-theme
 
 # Math support
-math: true  # enables MathJax v3 automatically
-
-# Markdown
-markdown: kramdown
-kramdown:
-  input: kramdown          # MUST be 'kramdown', not 'GFM'
-  syntax_highlighter: rouge
+math: mathjax  # enables MathJax v3 automatically
 
 # Permalinks
 permalink: pretty

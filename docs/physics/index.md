@@ -1,5 +1,5 @@
 ---
-title: Physics
+title: Physical models
 nav_order: 4
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: Governing differential equations
-parent: Physics
+parent: Physical models
 nav_order: 1
 ---
 

@@ -1,9 +1,9 @@
 ---
-title: Numerical Methods
+title: Numerical methods
 nav_order: 5
 ---
 
-# Numerical Methods
+# Numerical methods
 
 This section containing the numerics is organized as following:
 
@@ -22,3 +22,4 @@ This section containing the numerics is organized as following:
 
 ## Lagrangian particle phase
 - [Slip correction](slip-correction.md)
+- [Asynchronous spawn and exit](asynchronous.md)

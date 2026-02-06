@@ -1,3 +1,9 @@
+---
+title: Governing differential equations
+parent: Physics
+nav_order: 1
+---
+
 # Governing differential equations
 
 ## Eulerian fluid phase

@@ -1,6 +1,8 @@
 title: Documentation
 markdown: kramdown
-theme: just-the-docs
+remote_theme: pmarsceill/just-the-docs
+plugins:
+  - jekyll-remote-theme
 
 kramdown:
   math_engine: mathjax

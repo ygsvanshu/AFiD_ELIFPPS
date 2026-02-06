@@ -1,3 +1,8 @@
+---
+title: Getting started
+nav_order: 3
+---
+
 # Getting started
 
 AFiD_ELIFPPS is primarily designed to run on high performance computing clusters, but the examples provided can typically be run on modern hardware (laptops/desktops) to get started.

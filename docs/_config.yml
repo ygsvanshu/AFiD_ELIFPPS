@@ -55,18 +55,3 @@ heading_anchors: true
 # Enable or disable the side/mobile menu globally
 # Nav menu can also be selectively enabled or disabled using page variables or the minimal layout
 nav_enabled: true
-
-# Navigation
-# nav:
-#   - Home: index.md
-#   - Overview: overview.md
-#   - Getting started: getting-started.md
-#   - Usage: usage.md
-#   - Physics: physics/index.md
-#     - Boundary conditions: physics/boundary-conditions.md
-#     - Drag coefficient: physics/drag-coefficient.md
-#     - Governing differential equations : physics/governing-equations.md
-#     - Nondimensionalization: physics/nondimensionalization.md
-#   - Numerics: numerics/index.md
-#   - Validation: validation.md
-#   - API Reference: api.md

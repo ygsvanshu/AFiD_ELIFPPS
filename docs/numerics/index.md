@@ -1,4 +1,9 @@
-# Numerics
+---
+title: Numerical Methods
+nav_order: 5
+---
+
+# Numerical Methods
 
 This section containing the numerics is organized as following:
 

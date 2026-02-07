@@ -5,9 +5,6 @@ repo_name: ygsvanshu/AFiD_ELIFPPS
 repo_url: https://github.com/ygsvanshu/AFiD_ELIFPPS
 site_author: Guru Sreevanshu Yerragolam
 
-# Documentation directory
-docs_dir: .
-
 # Theme used by material for mkdocs
 theme:
   name: material

@@ -1,0 +1,11 @@
+# Site details and URLs
+site_name: AFiD_ELIFPPS Documentation
+site_url: https://ygsvanshu.github.io/AFiD_ELIFPPS/
+repo_name: ygsvanshu/AFiD_ELIFPPS
+repo_url: https://github.com/ygsvanshu/AFiD_ELIFPPS
+site_author: Guru Sreevanshu Yerragolam
+
+# Theme used by material for mkdocs
+theme:
+  name: material
+

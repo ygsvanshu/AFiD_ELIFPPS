@@ -2,7 +2,7 @@ name: ci
 on:
   push:
     branches:
-      - main
+      # - main
       - documentation
 permissions:
   contents: write
@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: documentation
       - name: Configure Git Credentials
         run: |
           git config user.name github-actions[bot]
@@ -26,4 +28,4 @@ jobs:
           restore-keys: |
             mkdocs-material-
       - run: pip install mkdocs-material 
-      - run: mkdocs gh-deploy --force
+      - run: mkdocs gh-deploy --force -f docs/mkdocs.yml

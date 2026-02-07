@@ -1,10 +1,3 @@
----
-title: Outputs
-parent: Usage
-nav_order: 2
-has_toc: false
----
-
 # Outputs
 
 The outputs produced by the code are listed below. All outputs except `continua.h5` are placed in a directory `Results` 

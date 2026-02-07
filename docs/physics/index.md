@@ -1,14 +1,8 @@
----
-title: Physical model
-nav_order: 4
-has_toc: false
----
-
-# Physical model
+# Physics models
 
 This section containing the details of the physics being modelled is organized as following:
 
 - [Governing differential equations](governing-equations.md)
-- [Nondimensionalization](Nondimensionalization.md)
+- [Nondimensionalization](nondimensionalization.md)
 - [Boundary conditions](boundary-conditions.md)
 - [Drag coefficient model](drag-coefficient.md)

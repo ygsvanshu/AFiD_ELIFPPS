@@ -1,9 +1,3 @@
----
-title: movie_slices_*.in
-parent: Inputs
-nav_order: 3
----
-
 # `movie_slices_*.in`
 
 The files `movie_slices_x.in`, `movie_slices_y.in`, and `movie_slices_z.in` supply inputs about what slice information to store for post-processing (e.g., making movies of visualizations). The file format is essentially an ordered table as follows. 

@@ -1,9 +1,3 @@
----
-title: Boundary conditions
-parent: Usage
-nav_order: 3
----
-
 # Defining boundary conditions
 
 ## Predefined boundary condition configurations

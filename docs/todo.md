@@ -1,8 +1,3 @@
----
-title: ToDo
-nav_order: 11
----
-
 # List of things to do
 
 - [ ] Maybe add a Poiseuille initial condition?

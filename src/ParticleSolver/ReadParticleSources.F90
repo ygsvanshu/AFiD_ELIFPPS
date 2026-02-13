@@ -22,7 +22,7 @@ subroutine ReadParticleSources
     logical                 :: nloc
     character*200           :: filename,dsetname
     character*4             :: charsrun
-    integer                 :: ierror,numsrc
+    integer                 :: ierror,numsrc,srcidx
     integer                 :: srun
     integer                 :: psrr,pstt,psst,psen
     type(particle_source)   :: nsrc
@@ -56,6 +56,7 @@ subroutine ReadParticleSources
         open(99, file=trim(filename))
         ierror = 0
         numsrc = 1
+        srcidx = 1
         do while (ierror.ne.iostat_end)
             read(99, *, iostat=ierror) nsrc%src_sta,nsrc%src_end,nsrc%src_frq,nsrc%src_dia,nsrc%src_den,nsrc%src_pos(1),nsrc%src_pos(2),nsrc%src_pos(3),nsrc%src_vel(1),nsrc%src_vel(2),nsrc%src_vel(3)
             if (ierror.eq.0) then
@@ -63,7 +64,7 @@ subroutine ReadParticleSources
                 call CheckIsSourceLocal(nsrc,nloc)
                 if (nloc) then
                     !!! Update the source index
-                    nsrc%src_idx = numsrc
+                    nsrc%src_idx = srcidx
                     !!! Find and update cell indices for c-grid (nodes)
                     call GetLocationCellIndex(nsrc%src_pos(1),xc(xstart(1)  :xend(1)+1),xstart(1)  ,xend(1)+1,nsrc%grc_idx(1))
                     call GetLocationCellIndex(nsrc%src_pos(2),yc(xstart(2)  :xend(2)+1),xstart(2)  ,xend(2)+1,nsrc%grc_idx(2))
@@ -77,6 +78,7 @@ subroutine ReadParticleSources
                     !!! Increment the index of source list
                     numsrc = numsrc + 1
                 end if
+                srcidx = srcidx + 1
             end if
         end do
         close(99)

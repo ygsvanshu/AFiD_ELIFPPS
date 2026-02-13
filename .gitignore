@@ -41,3 +41,6 @@ afid
 
 # debug information files
 *.dwo
+
+# Visual studio code files
+.vscode

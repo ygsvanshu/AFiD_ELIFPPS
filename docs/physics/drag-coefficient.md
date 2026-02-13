@@ -29,15 +29,16 @@ $$
 C_d(Re_p) = c_1 + \frac{c_2}{Re_p} + \frac{c_2}{Re_p^2},
 $$
 with
+
 $$
-\begin{align*}
-c_1 &= 0,      \quad & c_2 &= 24,       \quad & c_3 &= 0       \quad & \text{for} \quad & Re_p < 0.1 \\
-c_1 &= 3.690,  \quad & c_2 &= 22.73,    \quad & c_3 &= 0.0903  \quad & \text{for} \quad & 0.1 \le Re_p < 1 \\
-c_1 &= 1.222,  \quad & c_2 &= 29.1667,  \quad & c_3 &= -3.8889 \quad & \text{for} \quad & 1 \le Re_p < 10 \\
-c_1 &= 0.6167, \quad & c_2 &= 46.50,    \quad & c_3 &= -116.67 \quad & \text{for} \quad & 10 \le Re_p < 100 \\
-c_1 &= 0.3644, \quad & c_2 &= 98.33,    \quad & c_3 &= -2778   \quad & \text{for} \quad & 100 \le Re_p < 1000 \\
-c_1 &= 0.357,  \quad & c_2 &= 148.62,   \quad & c_3 &= -47500  \quad & \text{for} \quad & 1000 \le Re_p < 5000 \\
-c_1 &= 0.46,   \quad & c_2 &= -490.546, \quad & c_3 &= 578700  \quad & \text{for} \quad & 5000 \le Re_p < 10000 \\
-c_1 &= 0.5191, \quad & c_2 &= -1662.5,  \quad & c_3 &= 5416700 \quad & \text{for} \quad & Re_p \ge 10000
-\end{align*}
+\begin{array}{l l l l r r l}
+c_1 = \phantom{-}0,      & c_2 = \phantom{-}24,       & c_3 = \phantom{-}0        & \text{for } &      &     & Re_p < 0.1 \\
+c_1 = \phantom{-}3.690,  & c_2 = \phantom{-}22.73,    & c_3 = \phantom{-}0.0903   & \text{for } & 0.1  & \le & Re_p < 1 \\
+c_1 = \phantom{-}1.222,  & c_2 = \phantom{-}29.1667,  & c_3 = -3.8889             & \text{for } & 1    & \le & Re_p < 10 \\
+c_1 = \phantom{-}0.6167, & c_2 = \phantom{-}46.50,    & c_3 = -116.67             & \text{for } & 10   & \le & Re_p < 100 \\
+c_1 = \phantom{-}0.3644, & c_2 = \phantom{-}98.33,    & c_3 = -2778               & \text{for } & 100  & \le & Re_p < 1000 \\
+c_1 = \phantom{-}0.357,  & c_2 = \phantom{-}148.62,   & c_3 = -47500              & \text{for } & 1000 & \le & Re_p < 5000 \\
+c_1 = \phantom{-}0.46,   & c_2 = -490.546,            & c_3 = \phantom{-}578700   & \text{for } & 5000 & \le & Re_p < 10000 \\
+c_1 = \phantom{-}0.5191, & c_2 = -1662.5,             & c_3 = \phantom{-}5416700  & \text{for } &      &     & Re_p \ge 10000
+\end{array}
 $$

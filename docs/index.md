@@ -1,8 +1,3 @@
----
-title: Documentation
-nav_order: 1
----
-
 # AFiD_ELIFPPS Documentation
 
 This documentation is organized into three parts:

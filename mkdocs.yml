@@ -1,0 +1,93 @@
+# Site details and URLs
+site_name: AFiD_ELIFPPS Documentation
+site_url: https://ygsvanshu.github.io/AFiD_ELIFPPS/
+repo_name: ygsvanshu/AFiD_ELIFPPS
+repo_url: https://github.com/ygsvanshu/AFiD_ELIFPPS
+site_author: Guru Sreevanshu Yerragolam
+
+# Theme
+theme:
+  # Material for mkdocs
+  name: material
+  # Color palette
+  palette: 
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to light mode
+  # Font
+  font:
+    text: Roboto
+
+# Support for latex math
+markdown_extensions:
+  - pymdownx.arithmatex:
+      generic: true
+# Support for latex math - katex
+extra_javascript:
+  - javascripts/katex.js
+  - https://unpkg.com/katex@0/dist/katex.min.js
+  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+# Support for latex math - katex
+extra_css:
+  - https://unpkg.com/katex@0/dist/katex.min.css
+
+# Navigation
+nav:
+  - Home: 'index.md'
+  - Getting started:
+    - Overview: 'overview.md'
+    - Getting started: 'getting-started.md'
+    - Usage: 
+      - Inputs:
+        - solver.in: 'usage/inputs/solver.md'
+        - sgrid.in: 'usage/inputs/sgrid.md'
+        - movie_slices_*.in: 'usage/inputs/movie_slices.md'
+        - particle.in: 'usage/inputs/particle.md'
+        - particle_sources.in: 'usage/inputs/particle_sources.md'
+      - Outputs:
+        - grid.out: 'usage/outputs/grid.md'
+        - global.out: 'usage/outputs/global.md'
+        - continua.h5: 'usage/outputs/continua.md'
+        - movie_slices_*.h5: 'usage/outputs/movie_slices.md'
+        - partile_stats.out: 'usage/outputs/partile_stats.md'
+        - particle_exit.h5: 'usage/outputs/particle_exit.md'
+        - particle_history.h5: 'usage/outputs/particle_history.md'
+      - Boundary conditions: 'usage/boundary-conditions.md'
+      - Initial conditions: 'usage/initial-conditions.md'
+      - Source terms: 'usage/source-terms.md'
+      - Custom user functionality: 'usage/custom.md'
+  - Scientific background:
+    - Physics Models: 
+      - Governing differential equations: 'physics/governing-equations.md'
+      - Nondimensionalization: 'physics/nondimensionalization.md'
+      - Boundary conditions: 'physics/boundary-conditions.md'
+      - Drag coefficient model: 'physics/drag-coefficient.md'
+    - Numerical Methods: 
+      - Eulerian fluid phase:
+        - Time integration: 'numerics/fluid-time-integration.md'
+        - Spatial discretization: 'numerics/spatial-discretization.md'
+        - Advective terms: 'numerics/advective-terms.md'
+        - Diffusive terms: 'numerics/diffusive-terms.md'
+        - Pressure solver: 'numerics/pressure-solver.md'
+        - Boundary conditions: 'numerics/boundary-conditions.md'
+      - Lagrangian particle phase:
+        - Time integration: 'numerics/particle-time-integration.md'
+        - Slip correction: 'numerics/slip-correction.md'
+        - Asynchronous spawn and exit: 'numerics/asynchronous.md'
+      - Coupling:
+        - Trilinear Interpolation: 'numerics/interpolation.md'
+        - Stability: 'numerics/stability.md'
+    - Validation & Benchmarks: 'validation/index.md'
+    - References: 'references.md'
+  - Developer reference:
+    - Project Architecture: 'architecture.md'
+    - Code API & Modules: 'api.md'
+    - Roadmap: 'roadmap.md'
+    - TODO: 'todo.md'

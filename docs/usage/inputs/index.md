@@ -1,9 +1,3 @@
----
-title: Inputs
-parent: Usage
-nav_order: 1
----
-
 # Inputs
 
 AFiD_ELIPPS inputs consists of required and optional ascii plain-text files all placed in the directory `Inputs/`. The only mandatory input file is `solver.in`. If the solver doesn't find it, the code execution immediately stops with `MPI_Abort`. Conditionally optional input files include `sgrid.in`, `particle.in`, `particle_sources.in`, `movie_slices_x.in`, `movie_slices_y.in`, and `movie_slices_z.in`. These files will be explained in detail in the following links below.

@@ -24,7 +24,7 @@ If needed, one can implement their own configuration of boundary conditions appl
 
 6. Then, recompile the code with
 
-    ```bash
+    ```
     make BOUDIR=MyCustomBC
     ```
     

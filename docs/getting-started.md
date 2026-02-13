@@ -20,7 +20,7 @@ The makefile provided relies on the parallel HDF5-MPI wrapper of the Fortran 90 
 
 To compile, simply navigate to the directory where the source code has been cloned and type
 
-```bash
+```
 make
 ```
 
@@ -34,13 +34,13 @@ This should create the executable `afid`.
 It is strongly suggested to create the environment variables
 - `AFID_PATH` with the explicit path to the location where the executable `afid` is stored. This can be achieved by 
 
-    ```bash
+    ```
     export AFID_PATH=<path to afid executable>
     ```
 
 - `AFID_DATA` with the explicit path to the location to the directory [`data`](../data) where the file [`slip_correction.dat`](../data/slip_correction.dat) is stored. This can be achieved by 
 
-    ```bash
+    ```
     export AFID_DATA=<path to data directory containing the file slip_correction.dat>
     ```
 
@@ -50,7 +50,7 @@ Clone the example [`ParticleDeceleration`](../examples/ParticleDeceleration) and
 
 Running the simulation can be achieved by invoking
 
-```bash
+```
 mpirun -np <number of processes> $(AFID_PATH)/afid <number MPI pencil rows> <number of MPI pencil columns>
 ```
 

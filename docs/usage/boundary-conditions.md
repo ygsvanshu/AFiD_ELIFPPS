@@ -27,6 +27,7 @@ If needed, one can implement their own configuration of boundary conditions appl
     ```bash
     make BOUDIR=MyCustomBC
     ```
+    
 7. Run the case (see [getting started](../getting-started.md))
 
 8. Plot data of `Avg_Vy` against data of `Time` from `Results/global.out`. It should be possible to observe a preferential flow in the y-direction.

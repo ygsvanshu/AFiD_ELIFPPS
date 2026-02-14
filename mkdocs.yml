@@ -29,6 +29,8 @@ theme:
 markdown_extensions:
   - pymdownx.arithmatex:
       generic: true
+  - pymdownx.superfences
+  - pymdownx.highlight
 # Support for latex math - katex
 extra_javascript:
   - javascripts/katex.js

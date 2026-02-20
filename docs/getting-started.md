@@ -45,7 +45,7 @@ It is strongly suggested to create the environment variables
     export AFID_DATA=<path to data directory containing the file slip_correction.dat>
     ```
 
-    Although this is only strictly necessary when using slip correction for the particle model, it is still recommended to always set this variable as a good practice. In absence of this variable, the solver will fail when using slip correction with the particle model. 
+Although this is only strictly necessary when using slip correction for the particle model, it is still recommended to always set this variable as a good practice. In absence of this variable, the solver will fail when using slip correction with the particle model. 
 
 Clone the example [`ParticleDeceleration`](../examples/ParticleDeceleration) and navigate to the directory. Ensure that it contains the directory `Inputs` containing input files.
 
@@ -60,7 +60,7 @@ mpirun -np <number of processes> $(AFID_PATH)/afid <number MPI pencil rows> <num
 
 After a successful run, the stdout stream to the terminal should read 
 
-```
+```bash
 time greater than tmax
 continuation updated
 ```

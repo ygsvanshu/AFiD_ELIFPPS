@@ -9,12 +9,14 @@ with dispersed point particles.
 ## Problem Scope
 
 AFiD_ELIFPPS targets problems involving:
+
 - Incompressible Newtonian fluids
 - Dispersed, dilute particle phases with large density ratios
 - Two-way coupled momentum exchange
 - Periodic or wall-bounded box domains with open boundaries
 
 Typical applications include:
+
 - Particle-laden turbulent flows
 - Sedimentation and settling problems
 
@@ -23,14 +25,17 @@ Typical applications include:
 ## Modeling Approach
 
 ### Fluid Phase
+
 - Eulerian formulation
 - Incompressible Navier–Stokes equations
 
 ### Particle Phase
+
 - Lagrangian point-particle model
 - Maxey-Riley equations (Only steady state drag currently implemented)
 
 ### Coupling
+
 - Two-way momentum coupling between phases. Particle forces computed from slip, and modelled as explicit source terms in the flow momentum equations
 
 Details of governing equations and force models
@@ -53,6 +58,7 @@ Details are documented in the
 ## Assumptions and Limitations
 
 The solver assumes:
+
 - Box (cuboidal) domains
 - Cartesian grid with uniform grid in two directions
 - Moderate Reynolds numbers

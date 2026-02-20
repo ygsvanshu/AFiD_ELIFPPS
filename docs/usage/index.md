@@ -4,6 +4,7 @@ This section contains more details beyond [getting started](../getting-started.m
 
 - [Inputs](inputs/index.md)
 - [Outputs](outputs/index.md)
+- [Post processing using python](post-processing.md)
 - [Boundary conditions](boundary-conditions.md)
 - [Initial conditions](initial-conditions.md)
 - [Source terms](source-terms.md)

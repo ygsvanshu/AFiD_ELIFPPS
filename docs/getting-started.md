@@ -32,6 +32,7 @@ This should create the executable `afid`.
 ## Running examples
 
 It is strongly suggested to create the environment variables
+
 - `AFID_PATH` with the explicit path to the location where the executable `afid` is stored. This can be achieved by 
 
     ```bash
@@ -54,7 +55,8 @@ Running the simulation can be achieved by invoking
 mpirun -np <number of processes> $(AFID_PATH)/afid <number MPI pencil rows> <number of MPI pencil columns>
 ```
 
-Note that `mpiexec` can also be used in place of `mpirun`. When using a scheduler like SLURM, `srun` may also be used in the batch file if it has been set up appropriately.
+>**Note**
+> `mpiexec` can also be used in place of `mpirun`. When using a scheduler like SLURM, `srun` may also be used in the batch file if it has been set up appropriately.
 
 After a successful run, the stdout stream to the terminal should read 
 

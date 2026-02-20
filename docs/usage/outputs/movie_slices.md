@@ -1,1 +1,3 @@
 # `movie_slices_*.h5`
+
+The binary HDF5 file `movie_slices_x.h5`, `movie_slices_y.h5` and `movie_slices_z.h5` consist of 2D slices of flow-fields along planes normal to `x`, `y`, and `z` axes respectively. The format of the files are nearly identical, and the only difference is in the slice information stored in the `info` key. To keep a consistent track of the case information for each run in the case of continued simulations, the file is designed as follows.

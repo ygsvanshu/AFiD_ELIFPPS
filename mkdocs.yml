@@ -11,24 +11,37 @@ theme:
   name: material
   # Color palette
   palette: 
-    # Palette toggle for light mode
-    - scheme: default
-      toggle:
-        icon: material/toggle-switch
-        name: Switch to dark mode
     # Palette toggle for dark mode
     - scheme: slate
       toggle:
         icon: material/toggle-switch-off-outline
         name: Switch to light mode
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
   # Font
   font:
     text: Roboto
+  # Features
+  features:
+    - content.code.copy
+    - content.code.annotate
 
 # Support for latex math
 markdown_extensions:
   - pymdownx.arithmatex:
       generic: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
 # Support for latex math - katex
 extra_javascript:
   - javascripts/katex.js
@@ -56,9 +69,16 @@ nav:
         - global.out: 'usage/outputs/global.md'
         - continua.h5: 'usage/outputs/continua.md'
         - movie_slices_*.h5: 'usage/outputs/movie_slices.md'
-        - partile_stats.out: 'usage/outputs/partile_stats.md'
+        - particle_stats.out: 'usage/outputs/particle_stats.md'
         - particle_exit.h5: 'usage/outputs/particle_exit.md'
         - particle_history.h5: 'usage/outputs/particle_history.md'
+      - Post processing using python: 
+        - Overview: 'usage/post-processing/index.md'
+        - global.out: 'usage/post-processing/global.md'
+        - particle_stats.out: 'usage/post-processing/particle_stats.md'
+        - movie_slices_*.h5: 'usage/post-processing/movie_slices.md'
+        - particle_exit.h5: 'usage/post-processing/particle_exit.md'
+        - particle_history.h5: 'usage/post-processing/particle_history.md'
       - Boundary conditions: 'usage/boundary-conditions.md'
       - Initial conditions: 'usage/initial-conditions.md'
       - Source terms: 'usage/source-terms.md'

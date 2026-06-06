@@ -7,8 +7,8 @@ AFiD_ELIFPPS is primarily designed to run on high performance computing clusters
 The following need to be installed before to successfully build and run AFiD_ELIFPPS
 
 - A Fortran 90 compiler (preferably GNU gfortran)
-- LAPACK (or an equivalent package such as Intel MKL)
 - MPI implementation (preferably OpenMPI)
+- LAPACK (or an equivalent package such as Intel MKL)
 - FFTW
 - HDF5
 

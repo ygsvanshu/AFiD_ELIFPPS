@@ -83,6 +83,10 @@ This file contains the main input parameters required to run the fluid solver. T
 	> **Note**  
 	> Since the equations solved by the code are non-dimensional, the reason for a large velocity is often a blow-up caused by a departure from the stability margin of the governing equations
 
+- `CVEL`: Parameter that controls the non-reflecting outflow advection speed.
+	> **Note**  
+	> A value of 0 would correspond to a static condition fixed at initial state, and a value of infinity would correspond to a zero gradient Neumann condition. Typically lower values (less than 1.0) are more numerically stable.
+
 - Perturbed initial condition
     - `EPSNUM`: Parameter that determines the number of modes of sinusoidal perturbation functions added to the initial condition
     - `EPS`: Parameter that determines the magnitude of perturbation in the scalar initial condition (see [initial conditions]() for further information on the initial conditions)

@@ -23,6 +23,7 @@ subroutine InitParticleSolver
     integer(KIND=MPI_ADDRESS_KIND)                              :: bref,bext,bblb
     integer(KIND=MPI_ADDRESS_KIND), allocatable, dimension(:)   :: bdsp
     type(particle_data)                                         :: tlpp
+    type(particle_exit)                                         :: tepp
     character*200                                               :: filename
 
     ! Check lvlhalo is at least 1
@@ -82,6 +83,47 @@ subroutine InitParticleSolver
     !! Create the MPI data structure and commit it
     call MPI_TYPE_CREATE_STRUCT(bcnt,blen,bdsp,btyp,mpi_pdat,mpi_ierr)
     call MPI_TYPE_COMMIT(mpi_pdat,mpi_ierr)
+    !! Deallocate arrays
+    deallocate(blen)
+    deallocate(bdsp)
+    deallocate(btyp)
+
+    ! Make derived MPI datatype for particle exit event
+    !! Set block count
+    bcnt = 6
+    !! Allocate arrays for datatype definition
+    allocate(blen(bcnt))
+    allocate(bdsp(bcnt))
+    allocate(btyp(bcnt))
+    !! Set block lengths
+    blen( 1) = 1
+    blen( 2) = 1
+    blen( 3) = 1
+    blen( 4) = 1
+    blen( 5) = 3
+    blen( 6) = 3
+    !! Get block addresses from the test particle exit event
+    call MPI_GET_ADDRESS(tepp%src_idx,bdsp(1),mpi_ierr)
+    call MPI_GET_ADDRESS(tepp%pex_pln,bdsp(2),mpi_ierr) 
+    call MPI_GET_ADDRESS(tepp%pex_lft,bdsp(3),mpi_ierr) 
+    call MPI_GET_ADDRESS(tepp%pex_eft,bdsp(4),mpi_ierr)
+    call MPI_GET_ADDRESS(tepp%pex_pos,bdsp(5),mpi_ierr)
+    call MPI_GET_ADDRESS(tepp%pex_vel,bdsp(6),mpi_ierr)
+    !! Get block displacements from block address reference
+    call MPI_GET_ADDRESS(tepp,bref,mpi_ierr)
+    do bnum = 1,bcnt
+        bdsp(bnum) = bdsp(bnum) - bref
+    end do
+    !! Set block datatypes
+    btyp(1) = MPI_INTEGER
+    btyp(2) = MPI_CHARACTER
+    btyp(3) = MPI_DOUBLE_PRECISION
+    btyp(4) = MPI_DOUBLE_PRECISION
+    btyp(5) = MPI_DOUBLE_PRECISION
+    btyp(6) = MPI_DOUBLE_PRECISION
+    !! Create the MPI data structure and commit it
+    call MPI_TYPE_CREATE_STRUCT(bcnt,blen,bdsp,btyp,mpi_edat,mpi_ierr)
+    call MPI_TYPE_COMMIT(mpi_edat,mpi_ierr)
     !! Deallocate arrays
     deallocate(blen)
     deallocate(bdsp)

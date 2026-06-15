@@ -47,5 +47,6 @@ subroutine FinalizeParticleSolver !{DONE}!
     if (allocated(dat_coef)) deallocate(dat_coef)
     
     call MPI_TYPE_FREE(mpi_pdat,mpi_ierr)
+    call MPI_TYPE_FREE(mpi_edat,mpi_ierr)
 
 end subroutine FinalizeParticleSolver

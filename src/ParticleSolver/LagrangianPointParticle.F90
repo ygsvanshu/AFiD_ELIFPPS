@@ -79,6 +79,7 @@ module lagrangian_point_particle
     ! MPI related module parameters
 
     integer                                             :: mpi_pdat     ! MPI type for particle data
+    integer                                             :: mpi_edat     ! MPI type for particle exit
 
     ! Statistics
 

@@ -99,6 +99,8 @@ This file contains the main input parameters required to run the fluid solver. T
 
 - `NOUT`: Number of intervals between global statistics calculation and printout to stdout.
 
+- `CSAV`: Wall-clock time in seconds after which the continua.h5 checkpoint file is updated periodically (to be used for restarting in case of a simulation crash)
+
 - Spatially averaged 1D profiles 
 	- `1DON`: Saving spatially averaged profiles
 		- `1DON = y`: Saving enabled

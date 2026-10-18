@@ -34,9 +34,9 @@ subroutine CalcBoundaryConditionVX
                 if (btyp.eq.NEUMANN)    cfbcxs(jc,kc,1) =  1.0
                 if (btyp.eq.SOMMERFELD) cfbcxs(jc,kc,1) =  (bval*al*dt)/((bval*al*dt) + dxc(1  ))
                 call VxBcXe(jc,kc,btyp,bval)
-                if (btyp.eq.DIRICHLET)  cfbcxs(jc,kc,1) =  0.0
-                if (btyp.eq.NEUMANN)    cfbcxs(jc,kc,1) =  1.0
-                if (btyp.eq.SOMMERFELD) cfbcxs(jc,kc,1) =  (bval*al*dt)/((bval*al*dt) + dxc(nxm))
+                if (btyp.eq.DIRICHLET)  cfbcxe(jc,kc,1) =  0.0
+                if (btyp.eq.NEUMANN)    cfbcxe(jc,kc,1) =  1.0
+                if (btyp.eq.SOMMERFELD) cfbcxe(jc,kc,1) =  (bval*al*dt)/((bval*al*dt) + dxc(nxm))
             end do
         end do
     end if

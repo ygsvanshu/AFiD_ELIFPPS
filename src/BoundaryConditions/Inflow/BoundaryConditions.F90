@@ -1,29 +1,37 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!                                                         !
-!    FILE: BoundaryConditions.F90                         !
-!    CONTAINS: subroutines V(x/y/z)Bc(X/Y/Z)(s/e)         !
-!                                                         !
-!    PURPOSE: Sets the boundary conditions for each       !
-!    velocity component Vx, Vy, Vz in three directions    !
-!    X, Y, Z at the start (s) or end (e) of the axis.     !
-!                                                         !
-!    All B.C. functions take two spatial coordinate       !
-!    indices as inputs, to set boundary type "btyp" which !
-!    can be "DIRICHLET", "NEUMANN", OR "SOMMERFELD".      !
-!    The value at the boundary is set by bval. Additional !
-!    information such as coordinates, grid spacing, time, !
-!    and time-step infomration can also be accessed in    !
-!    the subroutines. The variable "time" gives the flow  !
-!    time at the end of substep, and the product of the   !
-!    variables "al*dt" gives the substep time duration    !
-!    For Vx grid, the coordinates are xc(i), ym(j), zm(k) !
-!    For Vy grid, the coordinates are xm(i), yc(j), zm(k) !
-!    For Vz grid, the coordinates are xm(i), ym(j), zc(k) !
-!    For Vx grid, the spacings are dxc(i), dym(j), dzm(k) !
-!    For Vy grid, the spacings are dxm(i), dyc(j), dzm(k) !
-!    For Vz grid, the spacings are dxm(i), dym(j), dzc(k) !
-!                                                         !
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                              !
+!    FILE: BoundaryConditions.F90                              !
+!    CONTAINS: subroutines V(x/y/z)Bc(X/Y/Z)(s/e) and          !
+!              subroutines GlFl(X/Y/Z)(s/e)                    !
+!                                                              !
+!    PURPOSE: Sets the boundary conditions for each velocity   !
+!    component Vx, Vy, Vz in three directions X, Y, Z at the   !
+!    start (s) or end (e) of the axis, and the flux at the     !
+!    start (s) or end (e) of the axis.                         !
+!                                                              !
+!    All B.C. functions take two spatial coordinate indices as !
+!    inputs, to set boundary type "btyp" which can be          !
+!    "DIRICHLET", "NEUMANN", or "SOMMERFELD". The value at the !
+!    boundary is set by "bval".                                !
+!                                                              !
+!    All flux functions take two spatial coordinate indices as !
+!    inputs, to set the flux correction magnitude "gval" at    !
+!    the boundary.                                             !
+!                                                              !
+!    Additional information such as coordinates, grid spacing, !
+!    time, and time-step information can also be accessed in   !
+!    the subroutines. The variable "time" gives the flow time  !
+!    at the end of substep, and the product of the variables   !
+!    "al*dt" gives the substep time duration.                  !
+!                                                              !
+!    For Vx grid, the coordinates are xc(i), ym(j), zm(k)      !
+!    For Vy grid, the coordinates are xm(i), yc(j), zm(k)      !
+!    For Vz grid, the coordinates are xm(i), ym(j), zc(k)      !
+!    For Vx grid, the spacings are dxc(i), dym(j), dzm(k)      !
+!    For Vy grid, the spacings are dxm(i), dyc(j), dzm(k)      !
+!    For Vz grid, the spacings are dxm(i), dym(j), dzc(k)      !
+!                                                              !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !================ VX ================!
 
@@ -318,3 +326,71 @@ subroutine VzBcZe(i,j,btyp,bval)
     bval = cvel*dzc(nzm)/dtmax
 
 end subroutine VzBcZe
+
+!=============== Flux ===============!
+
+subroutine GlFlXs(j,k,gval)
+
+    implicit none
+
+    integer, intent(in)     :: j,k
+    real,    intent(out)    :: gval
+
+    gval = 1.0
+
+end subroutine GlFlXs
+
+subroutine GlFlXe(j,k,gval)
+
+    implicit none
+
+    integer, intent(in)     :: j,k
+    real,    intent(out)    :: gval
+
+    gval = 1.0
+
+end subroutine GlFlXe   
+
+subroutine GlFlYs(i,k,gval)
+
+    implicit none
+
+    integer, intent(in)     :: i,k
+    real,    intent(out)    :: gval
+
+    gval = 0.0
+
+end subroutine GlFlYs
+
+subroutine GlFlYe(i,k,gval)
+
+    implicit none
+
+    integer, intent(in)     :: i,k
+    real,    intent(out)    :: gval
+
+    gval = 1.0
+
+end subroutine GlFlYe
+
+subroutine GlFlZs(i,j,gval)
+
+    implicit none
+
+    integer, intent(in)     :: i,j
+    real,    intent(out)    :: gval
+
+    gval = 1.0
+
+end subroutine GlFlZs
+
+subroutine GlFlZe(i,j,gval)
+
+    implicit none
+
+    integer, intent(in)     :: i,j
+    real,    intent(out)    :: gval
+
+    gval = 1.0
+
+end subroutine GlFlZe

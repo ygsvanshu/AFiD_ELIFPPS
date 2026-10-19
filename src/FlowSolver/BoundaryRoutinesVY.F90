@@ -93,6 +93,8 @@ subroutine CalcBoundaryConditionVY
                     call VyBcYs(ic,kc,btypys(ic,kc,2), bvalys(ic,kc,2))
                     !!! Store this value needed for imposing B.C.s later
                     if (btypys(ic,kc,2).eq.SOMMERFELD) bvalys(ic,kc,2) = bvalys(ic,kc,2)*al*dt/dyc(1  )
+                    !!! Store magnitude of global flux correction allowed
+                    call GlFlYs(ic,kc,glpcys(ic,kc))
                 end do
             end do
         end if
@@ -102,6 +104,8 @@ subroutine CalcBoundaryConditionVY
                     call VyBcYe(ic,kc,btypye(ic,kc,2), bvalye(ic,kc,2))
                     !!! Store this value needed for imposing B.C.s later
                     if (btypye(ic,kc,2).eq.SOMMERFELD) bvalye(ic,kc,2) = bvalye(ic,kc,2)*al*dt/dyc(nym)
+                    !!! Store magnitude of global flux correction allowed
+                    call GlFlYe(ic,kc,glpcye(ic,kc))
                 end do
             end do
         end if
@@ -228,16 +232,9 @@ subroutine ImposeInternalBoundaryVY
             do kc = xstart(3),xend(3)
                 do ic = xstart(1),xend(1)
                     !! Boundary condition at y-axis start
-                    if (btypys(ic,kc,2).eq.DIRICHLET) then 
-                        vy(ic,1  ,kc) = bvalys(ic,kc,2)
-                        glpcys(ic,kc) = .false.
-                    else if (btypys(ic,kc,2).eq.NEUMANN) then 
-                        vy(ic,1  ,kc) = (vy(ic,2,kc) - bvalys(ic,kc,2)*dyc(1))
-                        glpcys(ic,kc) = .true.
-                    else if (btypys(ic,kc,2).eq.SOMMERFELD) then 
-                        vy(ic,1  ,kc) = (vy(ic,2,kc)*bvalys(ic,kc,2) + vy(ic,1,kc))/(1.0 + bvalys(ic,kc,2))
-                        glpcys(ic,kc) = .true.
-                    end if
+                    if (btypys(ic,kc,2).eq.DIRICHLET)  vy(ic,1 ,kc) = bvalys(ic,kc,2)
+                    if (btypys(ic,kc,2).eq.NEUMANN)    vy(ic,1 ,kc) = (vy(ic,2  ,kc) - bvalys(ic,kc,2)*dyc(1))
+                    if (btypys(ic,kc,2).eq.SOMMERFELD) vy(ic,1 ,kc) = (vy(ic,2  ,kc)*bvalys(ic,kc,2) + vy(ic,1 ,kc))/(1.0 + bvalys(ic,kc,2))
                 end do
             end do
         end if
@@ -245,16 +242,9 @@ subroutine ImposeInternalBoundaryVY
             do kc = xstart(3),xend(3)
                 do ic = xstart(1),xend(1)
                     !! Boundary condition at y-axis start
-                    if (btypye(ic,kc,2).eq.DIRICHLET) then 
-                        vy(ic,ny ,kc) = bvalye(ic,kc,2)
-                        glpcye(ic,kc) = .false.
-                    else if (btypye(ic,kc,2).eq.NEUMANN) then 
-                        vy(ic,ny ,kc) = (vy(ic,nym,kc) + bvalye(ic,kc,2)*dyc(nym))
-                        glpcye(ic,kc) = .true.
-                    else if (btypye(ic,kc,2).eq.SOMMERFELD) then 
-                        vy(ic,ny ,kc) = (vy(ic,nym,kc)*bvalye(ic,kc,2) + vy(ic,ny,kc))/(1.0 + bvalye(ic,kc,2))
-                        glpcye(ic,kc) = .true.
-                    end if
+                    if (btypye(ic,kc,2).eq.DIRICHLET)  vy(ic,ny,kc) = bvalye(ic,kc,2)
+                    if (btypye(ic,kc,2).eq.NEUMANN)    vy(ic,ny,kc) = (vy(ic,nym,kc) + bvalye(ic,kc,2)*dyc(nym))
+                    if (btypye(ic,kc,2).eq.SOMMERFELD) vy(ic,ny,kc) = (vy(ic,nym,kc)*bvalye(ic,kc,2) + vy(ic,ny,kc))/(1.0 + bvalye(ic,kc,2))
                 end do
             end do
         end if

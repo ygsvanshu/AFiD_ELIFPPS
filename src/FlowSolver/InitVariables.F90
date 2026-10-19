@@ -151,12 +151,12 @@ subroutine InitVariables
     call AllocateReal3DArray(cfbczs,zstart(1),zend(1),zstart(2),zend(2),1,3)
     call AllocateReal3DArray(cfbcze,zstart(1),zend(1),zstart(2),zend(2),1,3)
     ! Arrays to store whether global flux balance is allowed
-    call AllocateLogical2DArray(glpcxs,xstart(2),xend(2),xstart(3),xend(3))
-    call AllocateLogical2DArray(glpcxe,xstart(2),xend(2),xstart(3),xend(3))
-    if (xstart(2).eq.1) call AllocateLogical2DArray(glpcys,xstart(1),xend(1),xstart(3),xend(3))
-    if (xend(2).eq.nym) call AllocateLogical2DArray(glpcye,xstart(1),xend(1),xstart(3),xend(3))
-    if (xstart(3).eq.1) call AllocateLogical2DArray(glpczs,xstart(1),xend(1),xstart(2),xend(2))
-    if (xend(3).eq.nzm) call AllocateLogical2DArray(glpcze,xstart(1),xend(1),xstart(2),xend(2))
+    call AllocateReal2DArray(glpcxs,xstart(2),xend(2),xstart(3),xend(3))
+    call AllocateReal2DArray(glpcxe,xstart(2),xend(2),xstart(3),xend(3))
+    if (xstart(2).eq.1) call AllocateReal2DArray(glpcys,xstart(1),xend(1),xstart(3),xend(3))
+    if (xend(2).eq.nym) call AllocateReal2DArray(glpcye,xstart(1),xend(1),xstart(3),xend(3))
+    if (xstart(3).eq.1) call AllocateReal2DArray(glpczs,xstart(1),xend(1),xstart(2),xend(2))
+    if (xend(3).eq.nzm) call AllocateReal2DArray(glpcze,xstart(1),xend(1),xstart(2),xend(2))
 
     !-------------------------------------------------
     ! Arrays for movie slices

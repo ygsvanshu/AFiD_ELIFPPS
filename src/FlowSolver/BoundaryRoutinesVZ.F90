@@ -114,6 +114,8 @@ subroutine CalcBoundaryConditionVZ
                     call VzBcZs(ic,jc,btypzs(ic,jc,3), bvalzs(ic,jc,3))
                     !!! Store this value needed for imposing B.C.s later
                     if (btypzs(ic,jc,3).eq.SOMMERFELD) bvalzs(ic,jc,3) = bvalzs(ic,jc,3)*al*dt/dzc(1  )
+                    !!! Store magnitude of global flux correction allowed
+                    call GlFlZs(ic,jc,glpczs(ic,jc))
                 end do
             end do
         end if
@@ -123,6 +125,8 @@ subroutine CalcBoundaryConditionVZ
                     call VzBcZe(ic,jc,btypze(ic,jc,3), bvalze(ic,jc,3))
                     !!! Store this value needed for imposing B.C.s later
                     if (btypze(ic,jc,3).eq.SOMMERFELD) bvalze(ic,jc,3) = bvalze(ic,jc,3)*al*dt/dzc(nzm)
+                    !!! Store magnitude of global flux correction allowed
+                    call GlFlZe(ic,jc,glpcze(ic,jc))
                 end do
             end do
         end if
@@ -228,16 +232,9 @@ subroutine ImposeInternalBoundaryVZ
             do jc = xstart(2),xend(2)
                 do ic = xstart(1),xend(1)
                     !! Boundary condition at z-axis start
-                    if (btypzs(ic,jc,3).eq.DIRICHLET)  then 
-                        vz(ic,jc,1  ) = bvalzs(ic,jc,3)
-                        glpczs(ic,jc) = .false.
-                    else if (btypzs(ic,jc,3).eq.NEUMANN) then 
-                        vz(ic,jc,1  ) = (vz(ic,jc,2) - bvalzs(ic,jc,3)*dzc(1))
-                        glpczs(ic,jc) = .true.
-                    else if (btypzs(ic,jc,3).eq.SOMMERFELD) then 
-                        vz(ic,jc,1  ) = (vz(ic,jc,2)*bvalzs(ic,jc,3) + vz(ic,jc,1))/(1.0 + bvalzs(ic,jc,3))
-                        glpczs(ic,jc) = .true.
-                    end if
+                    if (btypzs(ic,jc,3).eq.DIRICHLET)  vz(ic,jc,1 ) = bvalzs(ic,jc,3)
+                    if (btypzs(ic,jc,3).eq.NEUMANN)    vz(ic,jc,1 ) = (vz(ic,jc,2  ) - bvalzs(ic,jc,3)*dzc(1))
+                    if (btypzs(ic,jc,3).eq.SOMMERFELD) vz(ic,jc,1 ) = (vz(ic,jc,2  )*bvalzs(ic,jc,3) + vz(ic,jc,1 ))/(1.0 + bvalzs(ic,jc,3))
                 end do
             end do
         end if
@@ -245,16 +242,9 @@ subroutine ImposeInternalBoundaryVZ
             do jc = xstart(2),xend(2)
                 do ic = xstart(1),xend(1)
                     !! Boundary condition at z-axis end
-                    if (btypze(ic,jc,3).eq.DIRICHLET) then 
-                        vz(ic,jc,nz ) = bvalze(ic,jc,3) 
-                        glpcze(ic,jc) = .false.
-                    else if (btypze(ic,jc,3).eq.NEUMANN) then 
-                        vz(ic,jc,nz ) = (vz(ic,jc,nzm) + bvalze(ic,jc,3)*dzc(nzm))
-                        glpcze(ic,jc) = .true.
-                    else if (btypze(ic,jc,3).eq.SOMMERFELD) then 
-                        vz(ic,jc,nz ) = (vz(ic,jc,nzm)*bvalze(ic,jc,3) + vz(ic,jc,nz))/(1.0 + bvalze(ic,jc,3))
-                        glpcze(ic,jc) = .true.
-                    end if
+                    if (btypze(ic,jc,3).eq.DIRICHLET)  vz(ic,jc,nz) = bvalze(ic,jc,3) 
+                    if (btypze(ic,jc,3).eq.NEUMANN)    vz(ic,jc,nz) = (vz(ic,jc,nzm) + bvalze(ic,jc,3)*dzc(nzm))
+                    if (btypze(ic,jc,3).eq.SOMMERFELD) vz(ic,jc,nz) = (vz(ic,jc,nzm)*bvalze(ic,jc,3) + vz(ic,jc,nz))/(1.0 + bvalze(ic,jc,3))
                 end do
             end do
         end if

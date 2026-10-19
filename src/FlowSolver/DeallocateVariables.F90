@@ -149,12 +149,12 @@ subroutine DeallocateVariables
     call DestroyReal3DArray(cfbczs)
     call DestroyReal3DArray(cfbcze)
     ! Arrays to store whether global flux balance is allowed
-    call DestroyLogical2DArray(glpcxs)
-    call DestroyLogical2DArray(glpcxe)
-    if (xstart(2).eq.1) call DestroyLogical2DArray(glpcys)
-    if (xend(2).eq.nym) call DestroyLogical2DArray(glpcye)
-    if (xstart(3).eq.1) call DestroyLogical2DArray(glpczs)
-    if (xend(3).eq.nzm) call DestroyLogical2DArray(glpcze)
+    call DestroyReal2DArray(glpcxs)
+    call DestroyReal2DArray(glpcxe)
+    if (xstart(2).eq.1) call DestroyReal2DArray(glpcys)
+    if (xend(2).eq.nym) call DestroyReal2DArray(glpcye)
+    if (xstart(3).eq.1) call DestroyReal2DArray(glpczs)
+    if (xend(3).eq.nzm) call DestroyReal2DArray(glpcze)
 
     !-------------------------------------------------
     ! Arrays for movie slices

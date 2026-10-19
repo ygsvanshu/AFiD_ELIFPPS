@@ -147,10 +147,10 @@ module boundary_arrays
     real,allocatable,dimension(:,:,:)       :: cfbcxs,cfbcxe
     real,allocatable,dimension(:,:,:)       :: cfbcys,cfbcye
     real,allocatable,dimension(:,:,:)       :: cfbczs,cfbcze
-    ! Arrays to store whether global flux balance is allowed
-    logical,allocatable,dimension(:,:)      :: glpcxs,glpcxe
-    logical,allocatable,dimension(:,:)      :: glpcys,glpcye
-    logical,allocatable,dimension(:,:)      :: glpczs,glpcze
+    ! Arrays to store magnitude of global flux correction allowed
+    real,allocatable,dimension(:,:)         :: glpcxs,glpcxe
+    real,allocatable,dimension(:,:)         :: glpcys,glpcye
+    real,allocatable,dimension(:,:)         :: glpczs,glpcze
 
 end module boundary_arrays
 

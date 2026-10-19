@@ -20,12 +20,10 @@ subroutine CorrectGlobalDivergence
     implicit none
 
     real                :: gdiv,gcar
-    integer             :: gcnt
     integer             :: kc,kp
     integer             :: jc,jp
     integer             :: ic,ip
     real                :: res_dummy
-    integer             :: ies_dummy
 
     gdiv = 0.0
     gcar = 0.0
@@ -48,19 +46,11 @@ subroutine CorrectGlobalDivergence
 
     ! if (ismaster) print *, "PRE ---- ", "GDIV = ", gdiv, "GCAR = ",gcar 
 
-    gcnt = 0
-
     if (.not.periodic(1)) then
         do kc=xstart(3),xend(3)
             do jc=xstart(2),xend(2)
-                if (glpcxs(jc,kc)) then
-                    gcar = gcar + dyc(jc)*dzc(kc)
-                    gcnt = gcnt + 1
-                end if
-                if (glpcxe(jc,kc)) then 
-                    gcar = gcar + dyc(jc)*dzc(kc)
-                    gcnt = gcnt + 1
-                end if
+                gcar = gcar + dyc(jc)*dzc(kc)*glpcxs(jc,kc)
+                gcar = gcar + dyc(jc)*dzc(kc)*glpcxe(jc,kc)
             enddo
         enddo
     end if
@@ -69,20 +59,14 @@ subroutine CorrectGlobalDivergence
         if (xstart(2).eq.1) then
             do kc=xstart(3),xend(3)
                 do ic=xstart(1),xend(1)
-                    if (glpcys(ic,kc)) then
-                        gcar = gcar + dxc(ic)*dzc(kc)
-                        gcnt = gcnt + 1
-                    end if
+                    gcar = gcar + dxc(ic)*dzc(kc)*glpcys(ic,kc)
                 enddo
             enddo
         end if
         if (xend(2).eq.nym) then
             do kc=xstart(3),xend(3)
                 do ic=xstart(1),xend(1)
-                    if (glpcye(ic,kc)) then
-                        gcar = gcar + dxc(ic)*dzc(kc)
-                        gcnt = gcnt + 1
-                    end if
+                    gcar = gcar + dxc(ic)*dzc(kc)*glpcye(ic,kc)
                 enddo
             enddo
         endif
@@ -92,20 +76,14 @@ subroutine CorrectGlobalDivergence
         if (xstart(3).eq.1) then
             do jc=xstart(2),xend(2)
                 do ic=xstart(1),xend(1)
-                    if (glpczs(ic,jc)) then
-                        gcar = gcar + dxc(ic)*dyc(jc)
-                        gcnt = gcnt + 1
-                    end if
+                    gcar = gcar + dxc(ic)*dyc(jc)*glpczs(ic,jc)
                 enddo
             enddo
         end if
         if (xend(3).eq.nzm) then
             do jc=xstart(2),xend(2)
                 do ic=xstart(1),xend(1)
-                    if (glpcze(ic,jc)) then
-                        gcar = gcar + dxc(ic)*dyc(jc)
-                        gcnt = gcnt + 1
-                    end if
+                    gcar = gcar + dxc(ic)*dyc(jc)*glpcze(ic,jc)
                 enddo
             enddo
         endif
@@ -114,16 +92,14 @@ subroutine CorrectGlobalDivergence
     call MpiAllSumRealScalar(gcar,res_dummy)
     gcar = res_dummy
 
-    call MpiAllSumIntScalar(gcnt,ies_dummy)
-    gcnt = ies_dummy
-
-    if (gcnt.gt.0) then
+    ! Check if the division blows up
+    if (abs(gcar).gt.(gdiv/limitVel)) then
 
         if (.not.periodic(1)) then
             do kc=xstart(3),xend(3)
                 do jc=xstart(2),xend(2)
-                    if (glpcxs(jc,kc)) vx(1 ,jc,kc) = vx(1 ,jc,kc) + gdiv/gcar
-                    if (glpcxe(jc,kc)) vx(nx,jc,kc) = vx(nx,jc,kc) - gdiv/gcar
+                    vx(1 ,jc,kc) = vx(1 ,jc,kc) + (gdiv/gcar)*glpcxs(jc,kc)
+                    vx(nx,jc,kc) = vx(nx,jc,kc) - (gdiv/gcar)*glpcxe(jc,kc)
                 enddo
             enddo
         end if
@@ -132,14 +108,14 @@ subroutine CorrectGlobalDivergence
             if (xstart(2).eq.1) then
                 do kc=xstart(3),xend(3)
                     do ic=xstart(1),xend(1)
-                        if (glpcys(ic,kc)) vy(ic,1 ,kc) = vy(ic,1 ,kc) + gdiv/gcar
+                        vy(ic,1 ,kc) = vy(ic,1 ,kc) + (gdiv/gcar)*glpcys(ic,kc)
                     enddo
                 enddo
             end if
             if (xend(2).eq.nym) then
                 do kc=xstart(3),xend(3)
                     do ic=xstart(1),xend(1)
-                        if (glpcye(ic,kc)) vy(ic,ny,kc) = vy(ic,ny,kc) - gdiv/gcar
+                        vy(ic,ny,kc) = vy(ic,ny,kc) - (gdiv/gcar)*glpcye(ic,kc)
                     enddo
                 enddo
             endif
@@ -149,14 +125,14 @@ subroutine CorrectGlobalDivergence
             if (xstart(3).eq.1) then
                 do jc=xstart(2),xend(2)
                     do ic=xstart(1),xend(1)
-                        if (glpczs(ic,jc)) vz(ic,jc,1 ) = vz(ic,jc,1 ) + gdiv/gcar
+                        vz(ic,jc,1 ) = vz(ic,jc,1 ) + (gdiv/gcar)*glpczs(ic,jc)
                     enddo
                 enddo
             end if
             if (xend(3).eq.nzm) then
                 do jc=xstart(2),xend(2)
                     do ic=xstart(1),xend(1)
-                        if (glpcze(ic,jc)) vz(ic,jc,nz) = vz(ic,jc,nz) - gdiv/gcar
+                        vz(ic,jc,nz) = vz(ic,jc,nz) - (gdiv/gcar)*glpcze(ic,jc)
                     enddo
                 enddo
             endif

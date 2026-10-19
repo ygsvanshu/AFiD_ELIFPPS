@@ -79,9 +79,13 @@ subroutine CalcBoundaryConditionVX
                 call VxBcXs(jc,kc,btypxs(jc,kc,1), bvalxs(jc,kc,1))
                 !!! Store this value needed for imposing B.C.s later
                 if (btypxs(jc,kc,1).eq.SOMMERFELD) bvalxs(jc,kc,1) = bvalxs(jc,kc,1)*al*dt/dxc(1  )
+                !!! Store magnitude of global flux correction allowed
+                call GlFlXs(jc,kc,glpcxs(jc,kc))
                 call VxBcXe(jc,kc,btypxe(jc,kc,1), bvalxe(jc,kc,1))
                 !!! Store this value needed for imposing B.C.s later
                 if (btypxe(jc,kc,1).eq.SOMMERFELD) bvalxe(jc,kc,1) = bvalxe(jc,kc,1)*al*dt/dxc(nxm)
+                !!! Store magnitude of global flux correction allowed
+                call GlFlXe(jc,kc,glpcxe(jc,kc))
             end do
         end do
     end if
@@ -227,27 +231,13 @@ subroutine ImposeInternalBoundaryVX
         do kc = xstart(3),xend(3)
             do jc = xstart(2),xend(2)
                 !! Boundary condition at x-axis start
-                if (btypxs(jc,kc,1).eq.DIRICHLET) then 
-                    vx(1  ,jc,kc) = bvalxs(jc,kc,1)
-                    glpcxs(jc,kc) = .false.
-                else if (btypxs(jc,kc,1).eq.NEUMANN) then 
-                    vx(1  ,jc,kc) = (vx(2,jc,kc) - bvalxs(jc,kc,1)*dxc(1))
-                    glpcxs(jc,kc) = .true.
-                else if (btypxs(jc,kc,1).eq.SOMMERFELD) then 
-                    vx(1  ,jc,kc) = (vx(2,jc,kc)*bvalxs(jc,kc,1) + vx(1,jc,kc))/(1.0 + bvalxs(jc,kc,1))
-                    glpcxs(jc,kc) = .true.
-                end if
+                if (btypxs(jc,kc,1).eq.DIRICHLET)  vx(1 ,jc,kc) = bvalxs(jc,kc,1)
+                if (btypxs(jc,kc,1).eq.NEUMANN)    vx(1 ,jc,kc) = (vx(2  ,jc,kc) - bvalxs(jc,kc,1)*dxc(1))
+                if (btypxs(jc,kc,1).eq.SOMMERFELD) vx(1 ,jc,kc) = (vx(2  ,jc,kc)*bvalxs(jc,kc,1) + vx(1 ,jc,kc))/(1.0 + bvalxs(jc,kc,1))
                 !! Boundary condition at x-axis end
-                if (btypxe(jc,kc,1).eq.DIRICHLET) then 
-                    vx(nx ,jc,kc) = bvalxe(jc,kc,1)
-                    glpcxe(jc,kc) = .false.
-                else if (btypxe(jc,kc,1).eq.NEUMANN) then 
-                    vx(nx ,jc,kc) = (vx(nxm,jc,kc) + bvalxe(jc,kc,1)*dxc(nxm))
-                    glpcxe(jc,kc) = .true.
-                else if (btypxe(jc,kc,1).eq.SOMMERFELD) then 
-                    vx(nx ,jc,kc) = (vx(nxm,jc,kc)*bvalxe(jc,kc,1) + vx(nx,jc,kc))/(1.0 + bvalxe(jc,kc,1))
-                    glpcxe(jc,kc) = .true.
-                end if
+                if (btypxe(jc,kc,1).eq.DIRICHLET)  vx(nx,jc,kc) = bvalxe(jc,kc,1)
+                if (btypxe(jc,kc,1).eq.NEUMANN)    vx(nx,jc,kc) = (vx(nxm,jc,kc) + bvalxe(jc,kc,1)*dxc(nxm))
+                if (btypxe(jc,kc,1).eq.SOMMERFELD) vx(nx,jc,kc) = (vx(nxm,jc,kc)*bvalxe(jc,kc,1) + vx(nx,jc,kc))/(1.0 + bvalxe(jc,kc,1))
             end do
         end do
     end if

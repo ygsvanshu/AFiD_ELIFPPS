@@ -11,6 +11,8 @@ subroutine ReadSolverInputs
 
     use mpih
     use param
+    use boundary_arrays, only: DIRICHLET, NEUMANN
+    use pressure_solver, only: pcbcxs, pcbcxe, pcbcys, pcbcye, pcbczs, pcbcze
 
     implicit none
 
@@ -68,26 +70,20 @@ subroutine ReadSolverInputs
             read (ss(3),*) zlen
 
         else if (line(1:3) == '203') then
-            !###### GRID STRETCHING DIRECTION, TYPE, AND PARAMETER ######
+            !###### GRID STRETCHING TYPE ######
             call scan_string(line,3,ss,narg)
-            stringdummy1 = ss(1)
-            if ('n' == stringdummy1) then
-                straxs = 0
-            elseif ('x' == stringdummy1) then
-                straxs = 1
-            elseif ('y' == stringdummy1) then
-                straxs = 2
-            elseif ('z' == stringdummy1) then
-                straxs = 3
-            else
-                write (*,*) "ERROR: Input value of parameter STRAXS not valid"
-                write (*,*) "       ===> valid values 'n', 'x', 'y', or 'z'  "
-                call stop_config
-            end if
-            read (ss(2),*) strtyp
-            read (ss(3),*) strval
-
+            read (ss(1),*) gtpx
+            read (ss(2),*) gtpy
+            read (ss(3),*) gtpz
+        
         else if (line(1:3) == '204') then
+            !###### GRID STRETCHING VALUE ######
+            call scan_string(line,3,ss,narg)
+            read (ss(1),*) gvlx
+            read (ss(2),*) gvly
+            read (ss(3),*) gvlz
+
+        else if (line(1:3) == '205') then
             !###### PERIODICITY ######
             call scan_string(line,3,ss,narg)
             stringdummy1 = ss(1)
@@ -197,10 +193,92 @@ subroutine ReadSolverInputs
             read (ss(1),*) epsnum
             read (ss(2),*) eps
 
+        else if (line(1:3) == '410') then
+            !###### PRESSURE SOLVER SPEED TEST ITERATIONS ######
+            call scan_string(line,1,ss,narg)
+            read (ss(1),*) itpr
+
+        else if (line(1:3) == '411') then
+            !###### PRESSURE SOLVER BOUNDARY CONDITIONS (X) ######
+            call scan_string(line,2,ss,narg)
+            stringdummy1 = ss(1)
+            if ('D' == stringdummy1) then
+                pcbcxs = DIRICHLET
+            elseif ('N' == stringdummy1) then
+                pcbcxs = NEUMANN
+            else
+                write (*,*) "ERROR: Input value of parameter PRESSURE SOLVER B.C. (X) not valid "
+                write (*,*) "       ===> valid values 'D' or 'N'             "
+                call stop_config
+            end if
+            stringdummy1 = ss(2)
+            if ('D' == stringdummy1) then
+                pcbcxe = DIRICHLET
+            elseif ('N' == stringdummy1) then
+                pcbcxe = NEUMANN
+            else
+                write (*,*) "ERROR: Input value of parameter PRESSURE SOLVER B.C. (X) not valid "
+                write (*,*) "       ===> valid values 'D' or 'N'             "
+                call stop_config
+            end if
+
+        else if (line(1:3) == '412') then
+            !###### PRESSURE SOLVER BOUNDARY CONDITIONS (Y) ######
+            call scan_string(line,2,ss,narg)
+            stringdummy1 = ss(1)
+            if ('D' == stringdummy1) then
+                pcbcys = DIRICHLET
+            elseif ('N' == stringdummy1) then
+                pcbcys = NEUMANN
+            else
+                write (*,*) "ERROR: Input value of parameter PRESSURE SOLVER B.C. (Y) not valid "
+                write (*,*) "       ===> valid values 'D' or 'N'             "
+                call stop_config
+            end if
+            stringdummy1 = ss(2)
+            if ('D' == stringdummy1) then
+                pcbcye = DIRICHLET
+            elseif ('N' == stringdummy1) then
+                pcbcye = NEUMANN
+            else
+                write (*,*) "ERROR: Input value of parameter PRESSURE SOLVER B.C. (Y) not valid "
+                write (*,*) "       ===> valid values 'D' or 'N'             "
+                call stop_config
+            end if
+
+        else if (line(1:3) == '413') then
+            !###### PRESSURE SOLVER BOUNDARY CONDITIONS (Z) ######
+            call scan_string(line,2,ss,narg)
+            stringdummy1 = ss(1)
+            if ('D' == stringdummy1) then
+                pcbczs = DIRICHLET
+            elseif ('N' == stringdummy1) then
+                pcbczs = NEUMANN
+            else
+                write (*,*) "ERROR: Input value of parameter PRESSURE SOLVER B.C. (Z) not valid "
+                write (*,*) "       ===> valid values 'D' or 'N'             "
+                call stop_config
+            end if
+            stringdummy1 = ss(2)
+            if ('D' == stringdummy1) then
+                pcbcze = DIRICHLET
+            elseif ('N' == stringdummy1) then
+                pcbcze = NEUMANN
+            else
+                write (*,*) "ERROR: Input value of parameter PRESSURE SOLVER B.C. (Z) not valid "
+                write (*,*) "       ===> valid values 'D' or 'N'             "
+                call stop_config
+            end if
+
         else if (line(1:3) == '501') then
             !###### REYNOLDS NUMBER ######
             call scan_string(line,1,ss,narg)
             read (ss(1),*) rey
+
+        else if (line(1:3) == '502') then
+            !###### PRANDTL NUMBER ######
+            call scan_string(line,1,ss,narg)
+            read (ss(1),*) pra
 
         else if (line(1:3) == '601') then
             !###### OUTPUT INTERVAL ######
@@ -306,12 +384,14 @@ subroutine scan_string(S,N,SS,M)
     elseif (mod(i,2) /= 0) then
         ! ----- Exits if an odd number of primes is found
         write (*,*) "SCAN_STRING has found an odd number of primes:",i
+        write (*,'(a100)') s
         call stop_config
 
     elseif (m /= n) then
         ! ----- Exits if m/=n, otherwise determines the substrings
         write (*,*) "SCAN_STRING has found ",m," substrings"
         write (*,*) "SCAN_STRING  expected ",n," substrings"
+        write (*,'(a100)') s
         call stop_config
     else
         do i = 1,n

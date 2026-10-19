@@ -1,21 +1,8 @@
-subroutine PrintCaseInfo
+subroutine PrintSplashScreen
 
-    use mpih
     use param
 
     implicit none
-
-    character :: strchr
-    
-    if (straxs.eq.1) then
-        strchr = 'x'
-    else if (straxs.eq.2) then
-        strchr = 'y'
-    else if (straxs.eq.3) then
-        strchr = 'z'
-    else
-        strchr = 'n'
-    end if
 
     if (ismaster) then
 
@@ -39,7 +26,45 @@ subroutine PrintCaseInfo
         write (6,'(A77)') '                                                                             '
         write (6,'(A77)') '                            Navier-Stokes Solver                             '
         write (6,'(A77)') '                                                                             '
-        write (6,'(A77)') '**** PERIODICITY  ====================================================== ****'
+        write (6,'(A77)') '============================================================================='
+        write (6,'(A77)') '                                                                             '
+    
+    end if
+
+end subroutine PrintSplashScreen
+
+subroutine PrintCaseInfo
+
+    use mpih
+    use param
+    use boundary_arrays, only: DIRICHLET, NEUMANN
+    use pressure_solver, only: hdir, pcbcxs, pcbcxe, pcbcys, pcbcye, pcbczs, pcbcze, tmet, TGEMM, TFFT
+
+    implicit none
+
+    character :: strchr
+    character(len=9) :: pbcchr(2)
+    character(len=4) :: mtdchr(2)
+
+    if (hdir.eq.1) then
+        strchr = 'X'
+    else if (hdir.eq.2) then
+        strchr = 'Y'
+    else if (hdir.eq.3) then
+        strchr = 'Z'
+    else
+        strchr = 'N'
+    end if
+
+    pbcchr(DIRICHLET) = 'DIRICHLET'
+    pbcchr(NEUMANN) = 'NEUMANN'
+
+    mtdchr(TGEMM) = 'GEMM'
+    mtdchr(TFFT)  = ' FFT'
+
+    if (ismaster) then
+
+        write (6,'(A77)') '**** PERIODICITY ======================================================= ****'
         write (6,'(A77)') '                                                                             '
         write (6,'(A40,L8)') '     Periodic in X                    = ',periodic(1)
         write (6,'(A40,L8)') '     Periodic in Y                    = ',periodic(2)
@@ -57,9 +82,15 @@ subroutine PrintCaseInfo
         write (6,'(A40,I8)') '     Number of grid points in Y       = ',nym
         write (6,'(A40,I8)') '     Number of grid points in Z       = ',nzm
         write (6,'(A77)') '                                                                             '
-        write (6,'(A77)') '**** GRID STRETCHING =================================================== ****'
+        write (6,'(A77)') '**** PRESSURE SOLVER =================================================== ****'
         write (6,'(A77)') '                                                                             '
-        write (6,'(A40,A8)') '     Grid stretching axis             = ',strchr
+        write (6,'(A40,A8)') '     Helmholtz solve axis             = ',strchr
+        if (hdir.ne.1) write (6,'(A40,A8)') '     Eigenvectors in X multiplied by  = ',mtdchr(tmet(1))
+        if (hdir.ne.2) write (6,'(A40,A8)') '     Eigenvectors in Y multiplied by  = ',mtdchr(tmet(2))
+        if (hdir.ne.3) write (6,'(A40,A8)') '     Eigenvectors in Z multiplied by  = ',mtdchr(tmet(3))
+        if (.not.periodic(1)) write (6,'(A40,A,A3,A)') '     Boundary conditions (x)          = ',trim(pbcchr(pcbcxs)), " - ", trim(pbcchr(pcbcxe))
+        if (.not.periodic(2)) write (6,'(A40,A,A3,A)') '     Boundary conditions (y)          = ',trim(pbcchr(pcbcys)), " - ", trim(pbcchr(pcbcye))
+        if (.not.periodic(3)) write (6,'(A40,A,A3,A)') '     Boundary conditions (z)          = ',trim(pbcchr(pcbczs)), " - ", trim(pbcchr(pcbcze))
         write (6,'(A77)') '                                                                             '
         write (6,'(A77)') '**** PARALLELIZATION =================================================== ****'
         write (6,'(A77)') '                                                                             '
@@ -70,6 +101,7 @@ subroutine PrintCaseInfo
         write (6,'(A77)') '**** PHYSICAL PARAMETERS =============================================== ****'
         write (6,'(A77)') '                                                                             '
         write (6,'(A40,F10.3)') '     Reynolds Number                  = ',rey
+        write (6,'(A40,F10.3)') '     Prandtl Number                   = ',pra
         write (6,'(A77)') '                                                                             '
         write (6,'(A77)') '**** TIME-STEPPING ===================================================== ****'
         write (6,'(A77)') '                                                                             '
@@ -141,9 +173,9 @@ subroutine PrintStepInfo(wct,ela,dmax,davg,icfl)
         eta = eta - real(60*mn2)
         sc2 = int(eta)
 
-        write(6,'(A)') '-----------+------------+------------+------------+------------+------------+------------+------------+------------+-----------+------------+------------+------------'
-        write(6,'(A)') '  Timestep |  FlowTime  |     DT     | Global Div |  Max Div   |  vmax(1)   |  vmax(2)   |  vmax(3)   | CFL number | CPU Time  |   CPU DT   |  CPU Perf  |     ETA    '
-        write(6,'(I10,A,8(ES10.3,A),I3.2,2(A,I2.2),A,ES10.3,A,ES10.3,A,I3.2,2(A,I2.2))') ntime,' | ',time,' | ',dt,' | ',davg,' | ',dmax,' | ',vmax(1),' | ',vmax(2),' | ',vmax(3),' | ',icfl*dt,' | ',hr1,':',mn1,':',sc1,' | ',rut,' | ',prf,' | ',hr2,':',mn2,':',sc2
+        write(6,'(A)') '-----------+------------+------------+------------+------------+------------+------------+------------+------------+------------+-----------+------------+------------+------------'
+        write(6,'(A)') '  Timestep |  FlowTime  |     DT     | Global Div |  Max Div   |  vmax(1)   |  vmax(2)   |  vmax(3)   |  tmax(3)   | CFL number | CPU Time  |   CPU DT   |  CPU Perf  |     ETA    '
+        write(6,'(I10,A,9(ES10.3,A),I3.2,2(A,I2.2),A,ES10.3,A,ES10.3,A,I3.2,2(A,I2.2))') ntime,' | ',time,' | ',dt,' | ',davg,' | ',dmax,' | ',vmax(1),' | ',vmax(2),' | ',vmax(3),' | ',hmax,' | ',icfl*dt,' | ',hr1,':',mn1,':',sc1,' | ',rut,' | ',prf,' | ',hr2,':',mn2,':',sc2
 
     end if
 

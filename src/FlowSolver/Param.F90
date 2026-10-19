@@ -8,8 +8,9 @@
 !              module movie_arrays                        !
 !              module body_force                          !
 !              module mpih                                !
-!              module pressure_decomp                     !
+!              module tridiagonal_buffer                  !
 !              module fftw_params                         !
+!              module pressure_solver                     !
 !                                                         ! 
 !    PURPOSE: All modules required for the flow solver    !
 !                                                         !
@@ -23,62 +24,66 @@ module param
     ! Read from input file solver.in
 
     ! 1XX -----------------------
-    logical         :: nread 
+    logical         :: nread                                        ! Flag indicating if the input file has been read
     ! 2XX -----------------------
-    integer         :: nxm, nym, nzm
-    real            :: xlen,ylen,zlen
-    integer         :: straxs
-    integer         :: strtyp
-    real            :: strval
-    logical         :: periodic(3) = (/.false.,.false.,.false./)
+    integer         :: nxm, nym, nzm                                ! Number of grid cells in x, y, z directions
+    real            :: xlen,ylen,zlen                               ! Domain lengths in x, y, z directions
+    integer         :: gtpx,gtpy,gtpz                               ! Grid stretching type in x, y, z directions 
+    real            :: gvlx,gvly,gvlz                               ! Grid stretching parameter value in x, y, z directions
+    logical         :: periodic(3) = (/.false.,.false.,.false./)    ! Periodic boundary conditions in x, y, z directions
     ! 3XX -----------------------
-    integer         :: ntst
-    real            :: tmax
-    real            :: walltimemax
-    character*200   :: abortfile
+    integer         :: ntst                                         ! Maximum number of time steps  
+    real            :: tmax                                         ! Maximum simulation time
+    real            :: walltimemax                                  ! Maximum allowed wallclock time
+    character*200   :: abortfile                                    ! Filename for abort condition
     ! 4XX -----------------------
     integer         :: nsst 
-    logical         :: vardt = .true.
-    real            :: dt
-    real            :: dtmin,dtmax
-    real            :: limitCFL
-    real            :: resid
-    real            :: limitVel
-    integer         :: epsnum
-    real            :: eps
+    logical         :: vardt = .true.                               ! Flag for adaptive time stepping
+    real            :: dt                                           ! First time step (or constant time step if vardt = .false.)
+    real            :: dtmin,dtmax                                  ! Minimum and maximum allowed time step sizes
+    real            :: limitCFL                                     ! CFL limit for adaptive time stepping
+    real            :: resid                                        ! Maximum allowed divergence
+    real            :: limitVel                                     ! Maximum allowed velocity
+    integer         :: epsnum                                       ! Number of initial perturbations
+    real            :: eps                                          ! Initial perturbation magnitude
+    integer         :: itpr = 10                                    ! Pressure solver speed test iterations
     ! 5XX -----------------------
-    real            :: rey
+    real            :: rey                                          ! Reynolds number
+    real            :: pra                                          ! Prandtl number
     ! 6XX -----------------------
-    integer         :: nout
-    real            :: csav
-    logical         :: save1d,save2d,save3d
-    real            :: tsta1d,tsta2d,tsta3d
-    real            :: freq1d,freq2d,freq3d
+    integer         :: nout                                         ! Output interval
+    real            :: csav                                         ! Time interval for saving checkpoint data (continua.h5)
+    logical         :: save1d,save2d,save3d                         ! Flags, start times, and save intervals for saving 1D, 2D, 3D data        
+    real            :: tsta1d,tsta2d,tsta3d                         ! Flags, start times, and save intervals for saving 1D, 2D, 3D data        
+    real            :: freq1d,freq2d,freq3d                         ! Flags, start times, and save intervals for saving 1D, 2D, 3D data
 
     ! Other global variables
 
-    integer                 :: nx, ny, nz
-    integer                 :: ntime,ns
+    integer                 :: nx, ny, nz                           ! Number of grid points in x, y, z directions
+    integer                 :: ntime,ns                             ! Number of time steps and sub-steps
 
-    real                    :: time,tsta
-    real                    :: pi = 2.0*asin(1.0)
-    real                    :: al,ga,ro
+    real                    :: time,tsta                            ! Current simulation time and start time
+    real                    :: pi = 2.0*asin(1.0)                   ! Constant pi
+    real                    :: al,ga,ro                             ! Timestepping parameters: alpha, gamma, rho  
 
-    real                    :: cvel = 1.0
+    real                    :: cvel = 1.0                           ! Non-reflecting (SOMMERFELD) boundary characteristic velocity   
 
-    real, dimension(1:3)    :: vmax
-    real, dimension(1:3)    :: vavg
-    real, dimension(1:3)    :: vrms
-    real                    :: vmag
+    real, dimension(1:3)    :: vmax                                 ! Maximum velocity in x, y, z directions
+    real, dimension(1:3)    :: vavg                                 ! Average velocity in x, y, z directions
+    real, dimension(1:3)    :: vrms                                 ! Root mean square velocity in x, y, z directions
+    real                    :: vmag                                 ! Magnitude of velocity
+    real                    :: hmax                                 ! Maximum temperature
+    real                    :: havg                                 ! Average temperature
+    real                    :: hrms                                 ! Root mean square temperature
 
-    real, dimension(1:3)    :: gam,rom,alm
+    real, dimension(1:3)    :: gam,rom,alm                          ! Timestepping parameter arrays
               
-    logical                 :: ismaster = .false.
-    integer                 :: lvlhalo = 1
-    integer                 :: mpi_xcut,mpi_ycut,mpi_zcut
+    logical                 :: ismaster = .false.                   ! Flag indicating if the current process is the master process
+    integer                 :: lvlhalo = 1                          ! Level of halo cells
+    integer                 :: mpi_xcut,mpi_ycut,mpi_zcut           ! MPI domain decomposition cuts in x, y, z directions  
 
-    logical                 :: particle = .false.
-    logical                 :: pre_diff = .false.
+    logical                 :: particle = .false.                   ! If particle solver should run
+    logical                 :: pre_diff = .false.                   ! If diffusive terms is precalculated for particle solver
 
     ! Grid parameters 
 
@@ -105,12 +110,6 @@ module param
     real, allocatable, dimension(:)     :: ap3sk,ac3sk,am3sk
     real, allocatable, dimension(:)     :: ap3ck,ac3ck,am3ck
     real, allocatable, dimension(:)     :: amphk,acphk,apphk
-
-    ! Variables for FFTW and Poisson solver
-
-    real, allocatable, dimension(:)     :: ak1,ao
-    real, allocatable, dimension(:)     :: ak2,ap
-    real, allocatable, dimension(:)     :: ak3,aq
         
 end module param
 
@@ -216,94 +215,66 @@ module mpih
 
 end module mpih
 
-module pressure_decomp
-
-    use decomp_2d
+module tridiagonal_buffer
 
     implicit none
 
-    type(decomp_info)                   :: ph_info_n
-    type(decomp_info)                   :: ph_info_x
-    type(decomp_info)                   :: ph_info_y
-    type(decomp_info)                   :: ph_info_z
+    integer                         :: tdsz             ! Size of Thomas work buffers
+    real, allocatable, dimension(:) :: twk1, twk2     ! Inverse pivots / Sherman-Morrison vector
 
-end module pressure_decomp
+end module tridiagonal_buffer
 
+! FFTW interface (Fortran 2003, calls the FFTW C library directly).
+! fftw3.f03 is installed with FFTW, next to fftw3.h.
 module fftw_params
 
-    use iso_c_binding
+    use, intrinsic :: iso_c_binding
 
-    type, bind(C) :: fftw_iodim
-        integer(C_INT) n, is, os
-    end type fftw_iodim
+    implicit none
 
-    integer, parameter :: C_FFTW_R2R_KIND =  C_INT32_T
-    integer, parameter :: FFTW_PATIENT    =  32
-    integer, parameter :: FFTW_MEASURE    =  0
-    integer, parameter :: FFTW_ESTIMATE   =  64   
-    integer, parameter :: FFTW_FORWARD    = -1   
-    integer, parameter :: FFTW_BACKWARD   =  1
-    integer, parameter :: FFTW_REDFT01    =  4
-    integer, parameter :: FFTW_REDFT10    =  5
-    integer, parameter :: FFTW_R2HC       =  0
-    integer, parameter :: FFTW_HC2R       =  1
-
-    interface
-
-        type(C_PTR) function fftw_plan_guru_dft(rank,dims,howmany_rank,howmany_dims,in,out,sign,flags) bind(C, name='fftw_plan_guru_dft')
-            import
-            integer(C_INT), value :: rank
-            type(fftw_iodim), dimension(*), intent(in) :: dims
-            integer(C_INT), value :: howmany_rank
-            type(fftw_iodim), dimension(*), intent(in) :: howmany_dims
-            complex(C_DOUBLE_COMPLEX), dimension(*), intent(out) :: in
-            complex(C_DOUBLE_COMPLEX), dimension(*), intent(out) :: out
-            integer(C_INT), value :: sign
-            integer(C_INT), value :: flags
-        end function fftw_plan_guru_dft
-
-        type(C_PTR) function fftw_plan_guru_dft_r2c(rank,dims,howmany_rank,howmany_dims,in,out,flags) bind(C, name='fftw_plan_guru_dft_r2c')
-            import
-            integer(C_INT), value :: rank
-            type(fftw_iodim), dimension(*), intent(in) :: dims
-            integer(C_INT), value :: howmany_rank
-            type(fftw_iodim), dimension(*), intent(in) :: howmany_dims
-            real(C_DOUBLE), dimension(*), intent(out) :: in
-            complex(C_DOUBLE_COMPLEX), dimension(*), intent(out) :: out
-            integer(C_INT), value :: flags
-        end function fftw_plan_guru_dft_r2c
-        
-        type(C_PTR) function fftw_plan_guru_dft_c2r(rank,dims,howmany_rank,howmany_dims,in,out,flags) bind(C, name='fftw_plan_guru_dft_c2r')
-            import
-            integer(C_INT), value :: rank
-            type(fftw_iodim), dimension(*), intent(in) :: dims
-            integer(C_INT), value :: howmany_rank
-            type(fftw_iodim), dimension(*), intent(in) :: howmany_dims
-            complex(C_DOUBLE_COMPLEX), dimension(*), intent(out) :: in
-            real(C_DOUBLE), dimension(*), intent(out) :: out
-            integer(C_INT), value :: flags
-        end function fftw_plan_guru_dft_c2r
-
-        type(C_PTR) function fftw_plan_guru_r2r(rank,dims,howmany_rank,howmany_dims,in,out,kind,flags) bind(C, name='fftw_plan_guru_r2r')
-            import
-            integer(C_INT), value :: rank
-            type(fftw_iodim), dimension(*), intent(in) :: dims
-            integer(C_INT), value :: howmany_rank
-            type(fftw_iodim), dimension(*), intent(in) :: howmany_dims
-            real(C_DOUBLE), dimension(*), intent(out) :: in
-            real(C_DOUBLE), dimension(*), intent(out) :: out
-            integer(C_FFTW_R2R_KIND), dimension(*), intent(in) :: kind
-            integer(C_INT), value :: flags
-        end function fftw_plan_guru_r2r
-
-    end interface
-
-    type(C_PTR) :: fwd_guruplan_x,fwd_guruplan_y,fwd_guruplan_z
-    type(C_PTR) :: bwd_guruplan_x,bwd_guruplan_y,bwd_guruplan_z
-    
-    logical :: planned=.false.
-
-    real   ,allocatable,dimension(:,:,:) :: rx1,ry1,rz1
-    complex,allocatable,dimension(:,:,:) :: cx1,cy1,cz1
+    include 'fftw3.f03'
 
 end module fftw_params
+
+module pressure_solver
+
+    use fftw_params
+
+    implicit none
+
+    integer                             :: hdir     ! The direction of helmholtz solver (1=X, 2=Y, 3=Z)
+
+    real, allocatable, dimension(:,:)   :: qfwx, qfwy, qfwz ! Forward eigenvector arrays
+    real, allocatable, dimension(:,:)   :: qbwx, qbwy, qbwz ! Backward eigenvector arrays
+    real, allocatable, dimension(:)     :: geix,geiy,geiz! Eigenvalues belonging to the eigenvector arrays
+    real, allocatable, dimension(:)     :: feix, feiy, feiz    ! Modified wavenumbers: -ak are the eigenvalues for the FFT
+    real, allocatable, dimension(:)     :: eigx, eigy, eigz ! Eigenvalues of the selected method (used by the tridiagonal solvers)
+
+    integer                             :: niwk, nrwk       ! Buffer sizes (integer/real)
+    integer, allocatable, dimension(:)  :: iwrk             ! Integer buffer for eigenvalue factorization
+    real, allocatable, dimension(:)     :: rwrk             ! Real buffer for eigenvalue factorization
+
+    integer                             :: gszx, gszy, gszz ! Sizes of GEMM buffers in X, Y, Z directions
+    real, allocatable, dimension(:)     :: gwrk             ! Real buffer for batched GEMM
+
+    integer                             :: pcbcxs, pcbcxe   ! Pressure correction boundary condition start/end in X
+    integer                             :: pcbcys, pcbcye   ! Pressure correction boundary condition start/end in Y
+    integer                             :: pcbczs, pcbcze   ! Pressure correction boundary condition start/end in Z
+
+    integer                             :: izmx = 0         ! Zero-mode index for x direction (0 = none)
+    integer                             :: izmy = 0         ! Zero-mode index for y direction (0 = none)
+    integer                             :: izmz = 0         ! Zero-mode index for z direction (0 = none)
+
+    ! Methods to multiply with the eigenvectors of the pressure operator: dense
+    ! eigenvector matrices (GEMM, any grid) or real-to-real FFTs (uniform grids)
+    integer, parameter                  :: TGEMM = 1, TFFT = 2
+    integer                             :: tmet(3)          ! Method per direction (X, Y, Z)
+    logical                             :: fftok(3)         ! FFT possible per direction (uniform grid, plans created)
+    real                                :: fnrm(3)          ! FFT normalisation per direction
+    type(C_PTR)                         :: pfwx = C_NULL_PTR, pfwy = C_NULL_PTR, pfwz = C_NULL_PTR ! FFTW plans: from eigenspace back to physical space
+    type(C_PTR)                         :: pbwx = C_NULL_PTR, pbwy = C_NULL_PTR, pbwz = C_NULL_PTR ! FFTW plans: from physical space to eigenspace
+
+    ! FFTW planner flag (change here and recompile, e.g. to FFTW_ESTIMATE)
+    integer(C_INT), parameter           :: fftflg = FFTW_MEASURE
+
+end module pressure_solver

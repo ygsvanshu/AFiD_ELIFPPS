@@ -17,12 +17,12 @@ subroutine SolveImpEqnUpdateVY
 
     implicit none
 
-    call TridiagonalSolverXM(2)
+    call TridiagonalSolverXM(2,(1.0/rey))
     call transpose_x_to_y(rhx,rhy)
-    call TridiagonalSolverYC(2)
+    call TridiagonalSolverYC(2,(1.0/rey))
     if (nzm.gt.1) then
         call transpose_y_to_z(rhy,rhz)
-        call TridiagonalSolverZM(2)
+        call TridiagonalSolverZM(2,(1.0/rey))
         call transpose_z_to_x(rhz,rhx)
     else
         call transpose_y_to_x(rhy,rhx)

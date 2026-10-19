@@ -2,9 +2,23 @@
 !                                                         !
 !    FILE: SolvePressureCorrection.F90                    !
 !    CONTAINS: subroutine SolvePressureCorrection         !
+!              subroutine MultiplyEigenvectors(FW/BW)_X   !
+!              subroutine MultiplyEigenvectors(FW/BW)_Y   !
+!              subroutine MultiplyEigenvectors(FW/BW)_Z   !
 !                                                         !
 !    PURPOSE: Compute the pressure correction by solving  !
 !    the pressure Poisson equation                        !
+!                                                         !
+!    The right-hand side is multiplied with the (back-    !
+!    ward) eigenvectors of the second derivative in two   !
+!    directions (BW: physical space -> eigenspace), a     !
+!    tridiagonal system is solved in the third direction  !
+!    (hdir), and the result is multiplied with the        !
+!    (forward) eigenvectors (FW: eigenspace -> physical   !
+!    space). Per direction, the multiplication is done    !
+!    with dense eigenvector matrices (GEMM) or with real- !
+!    to-real FFTs on uniform grids (tmet = TGEMM/TFFT):   !
+!    the same operation, computed with a faster method.   !
 !                                                         !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -12,285 +26,180 @@ subroutine SolvePressureCorrection
 
     use decomp_2d
     use param
-    use fftw_params
-    use local_arrays, only: dph
-    use pressure_decomp
+    use local_arrays, only: rhx, rhy, rhz
+    use pressure_solver
 
     implicit none
 
-    if (allocated(rx1)) rx1(:,:,:) = 0.0
-    if (allocated(cx1)) cx1(:,:,:) = 0.0
-    if (allocated(ry1)) ry1(:,:,:) = 0.0
-    if (allocated(cy1)) cy1(:,:,:) = 0.0
-    if (allocated(rz1)) rz1(:,:,:) = 0.0
-    if (allocated(cz1)) cz1(:,:,:) = 0.0
-
-    if (straxs.eq.1) then
-        ! Stretching in X axis
-        ! X--->Y--->Y--->Z--->Z--->Y--->X--->X--->Y--->Z--->Z--->Y--->Y--->X
-        !   T    F    T    F    T    T    S    T    T    B    T    B    T
-        call transpose_x_to_y(dph, ry1, ph_info_n)
-        if (periodic(2)) then
-            call dfftw_execute_dft_r2c(fwd_guruplan_y, ry1, cy1)
-            call transpose_y_to_z(cy1, cz1, ph_info_y)
-            if (periodic(3)) then
-                call dfftw_execute_dft(fwd_guruplan_z, cz1, cz1)
-                call transpose_z_to_x(cz1, cx1, ph_info_y)
-                call TridiagonalSolverXP(nym*nzm, ph_info_y)
-                call transpose_x_to_z(cx1, cz1, ph_info_y)
-                call dfftw_execute_dft(bwd_guruplan_z, cz1, cz1)
-            else
-                call dfftw_execute_r2r(fwd_guruplan_z, cz1%re, cz1%re)
-                call dfftw_execute_r2r(fwd_guruplan_z, cz1%im, cz1%im)
-                call transpose_z_to_x(cz1, cx1, ph_info_y)
-                call TridiagonalSolverXP(2*nym*nzm, ph_info_y)
-                call transpose_x_to_z(cx1, cz1, ph_info_y)
-                call dfftw_execute_r2r(bwd_guruplan_z, cz1%re, cz1%re)
-                call dfftw_execute_r2r(bwd_guruplan_z, cz1%im, cz1%im)
-            end if
-            call transpose_z_to_y(cz1, cy1, ph_info_y)
-            call dfftw_execute_dft_c2r(bwd_guruplan_y, cy1, ry1)
-        else
-            call dfftw_execute_r2r(fwd_guruplan_y, ry1, ry1)
-            call transpose_y_to_z(ry1, rz1, ph_info_n)
-            if (periodic(3)) then
-                call dfftw_execute_dft_r2c(fwd_guruplan_z, rz1, cz1)
-                call transpose_z_to_x(cz1, cx1, ph_info_z)
-                call TridiagonalSolverXP(2*nym*nzm, ph_info_z)
-                call transpose_x_to_z(cx1, cz1, ph_info_z)
-                call dfftw_execute_dft_c2r(bwd_guruplan_z, cz1, rz1)
-            else
-                call dfftw_execute_r2r(fwd_guruplan_z, rz1, rz1)
-                call transpose_z_to_x(rz1, rx1, ph_info_n)
-                call TridiagonalSolverXR(4*nym*nzm, ph_info_n)
-                call transpose_x_to_z(rx1, rz1, ph_info_n)
-                call dfftw_execute_r2r(bwd_guruplan_z, rz1, rz1)
-            end if
-            call transpose_z_to_y(rz1, ry1, ph_info_n)
-            call dfftw_execute_r2r(bwd_guruplan_y, ry1, ry1)
-        end if
-        call transpose_y_to_x(ry1, dph, ph_info_n)
-    else if (straxs.eq.2) then
-        ! Stretching in Y axis
-        ! X--->X--->Y--->Z--->Z--->Y--->Y--->Z--->Z--->Y--->X--->X
-        !   F    T    T    F    T    S    T    B    T    T    B   
-        if (periodic(1)) then
-            call dfftw_execute_dft_r2c(fwd_guruplan_x, dph, cx1)
-            call transpose_x_to_z(cx1, cz1, ph_info_x)
-            if (periodic(3)) then
-                call dfftw_execute_dft(fwd_guruplan_z, cz1, cz1)
-                call transpose_z_to_y(cz1, cy1, ph_info_x)
-                call TridiagonalSolverYP(nxm*nzm, ph_info_x)
-                call transpose_y_to_z(cy1, cz1, ph_info_x)
-                call dfftw_execute_dft(bwd_guruplan_z, cz1, cz1)
-            else
-                call dfftw_execute_r2r(fwd_guruplan_z, cz1%re, cz1%re)
-                call dfftw_execute_r2r(fwd_guruplan_z, cz1%im, cz1%im)
-                call transpose_z_to_y(cz1, cy1, ph_info_x)
-                call TridiagonalSolverYP(2*nxm*nzm, ph_info_x)
-                call transpose_y_to_z(cy1, cz1, ph_info_x)
-                call dfftw_execute_r2r(bwd_guruplan_z, cz1%re, cz1%re)
-                call dfftw_execute_r2r(bwd_guruplan_z, cz1%im, cz1%im)
-            end if
-            call transpose_z_to_x(cz1, cx1, ph_info_x)
-            call dfftw_execute_dft_c2r(bwd_guruplan_x, cx1, dph)
-        else
-            call dfftw_execute_r2r(fwd_guruplan_x, dph, rx1)
-            call transpose_x_to_z(rx1, rz1, ph_info_n)
-            if (periodic(3)) then
-                call dfftw_execute_dft_r2c(fwd_guruplan_z, rz1, cz1)
-                call transpose_z_to_y(cz1, cy1, ph_info_z)
-                call TridiagonalSolverYP(2*nxm*nzm, ph_info_z)
-                call transpose_y_to_z(cy1, cz1, ph_info_z)
-                call dfftw_execute_dft_c2r(bwd_guruplan_z, cz1, rz1)
-            else
-                call dfftw_execute_r2r(fwd_guruplan_z, rz1, rz1)
-                call transpose_z_to_y(rz1, ry1, ph_info_n)
-                call TridiagonalSolverYR(4*nxm*nzm, ph_info_n)
-                call transpose_y_to_z(ry1, rz1, ph_info_n)
-                call dfftw_execute_r2r(bwd_guruplan_z, rz1, rz1)
-            end if
-            call transpose_z_to_x(rz1, rx1, ph_info_n)
-            call dfftw_execute_r2r(bwd_guruplan_x, rx1, dph)
-        end if
-    else if (straxs.eq.3) then
-        ! Stretching in Z axis
-        ! X--->X--->Y--->Y--->Z--->Z--->Y--->Y--->X--->X
-        !   F    T    F    T    S    T    B    T    B  
-        if (periodic(1)) then
-            call dfftw_execute_dft_r2c(fwd_guruplan_x, dph, cx1)
-            call transpose_x_to_y(cx1, cy1, ph_info_x)
-            if (periodic(2)) then
-                call dfftw_execute_dft(fwd_guruplan_y, cy1, cy1)
-                call transpose_y_to_z(cy1, cz1, ph_info_x)
-                call TridiagonalSolverZP(nxm*nym, ph_info_x)
-                call transpose_z_to_y(cz1, cy1, ph_info_x)
-                call dfftw_execute_dft(bwd_guruplan_y, cy1, cy1)
-            else
-                call dfftw_execute_r2r(fwd_guruplan_y, cy1%re, cy1%re)
-                call dfftw_execute_r2r(fwd_guruplan_y, cy1%im, cy1%im)
-                call transpose_y_to_z(cy1, cz1, ph_info_x)
-                call TridiagonalSolverZP(2*nxm*nym, ph_info_x)
-                call transpose_z_to_y(cz1, cy1, ph_info_x)
-                call dfftw_execute_r2r(bwd_guruplan_y, cy1%re, cy1%re)
-                call dfftw_execute_r2r(bwd_guruplan_y, cy1%im, cy1%im)
-            end if
-            call transpose_y_to_x(cy1, cx1, ph_info_x)
-            call dfftw_execute_dft_c2r(bwd_guruplan_x, cx1, dph)
-        else
-            call dfftw_execute_r2r(fwd_guruplan_x, dph, rx1)
-            call transpose_x_to_y(rx1, ry1, ph_info_n)
-            if (periodic(2)) then
-                call dfftw_execute_dft_r2c(fwd_guruplan_y, ry1, cy1)
-                call transpose_y_to_z(cy1, cz1, ph_info_y)
-                call TridiagonalSolverZP(2*nxm*nym, ph_info_y)
-                call transpose_z_to_y(cz1, cy1, ph_info_y)
-                call dfftw_execute_dft_c2r(bwd_guruplan_y, cy1, ry1)
-            else
-                call dfftw_execute_r2r(fwd_guruplan_y, ry1, ry1)
-                call transpose_y_to_z(ry1, rz1, ph_info_n)
-                call TridiagonalSolverZR(4*nxm*nym, ph_info_n)
-                call transpose_z_to_y(rz1, ry1, ph_info_n)
-                call dfftw_execute_r2r(bwd_guruplan_y, ry1, ry1)
-            end if
-            call transpose_y_to_x(ry1, rx1, ph_info_n)
-            call dfftw_execute_r2r(bwd_guruplan_x, rx1, dph)
-        end if
+    if (hdir.eq.1) then
+        ! Helmholtz solver in the X direction
+        call transpose_x_to_y(rhx,rhy)
+        call MultiplyEigenvectorsBW_Y
+        call transpose_y_to_z(rhy,rhz)
+        call MultiplyEigenvectorsBW_Z
+        call transpose_z_to_x(rhz,rhx)
+        call TridiagonalSolverXR
+        call transpose_x_to_z(rhx,rhz)
+        call MultiplyEigenvectorsFW_Z
+        call transpose_z_to_y(rhz,rhy)
+        call MultiplyEigenvectorsFW_Y
+        call transpose_y_to_x(rhy,rhx)
+    else if (hdir.eq.2) then
+        ! Helmholtz solver in the Y direction
+        call MultiplyEigenvectorsBW_X
+        call transpose_x_to_z(rhx,rhz)
+        call MultiplyEigenvectorsBW_Z
+        call transpose_z_to_y(rhz,rhy)
+        call TridiagonalSolverYR
+        call transpose_y_to_z(rhy,rhz)
+        call MultiplyEigenvectorsFW_Z
+        call transpose_z_to_x(rhz,rhx)
+        call MultiplyEigenvectorsFW_X
+    else if (hdir.eq.3) then
+        ! Helmholtz solver in the Z direction
+        call MultiplyEigenvectorsBW_X
+        call transpose_x_to_y(rhx,rhy)
+        call MultiplyEigenvectorsBW_Y
+        call transpose_y_to_z(rhy,rhz)
+        call TridiagonalSolverZR
+        call transpose_z_to_y(rhz,rhy)
+        call MultiplyEigenvectorsFW_Y
+        call transpose_y_to_x(rhy,rhx)
+        call MultiplyEigenvectorsFW_X
     else
-        ! Uniform grid
-        ! X--->X--->Y--->Y--->Z--->Z--->Y--->Y--->X--->X
-        !   F    T    F    T    S    T    B    T    B
-        if (periodic(1)) then
-            call dfftw_execute_dft_r2c(fwd_guruplan_x, dph, cx1)
-            call transpose_x_to_y(cx1, cy1, ph_info_x)
-            if (periodic(2)) then
-                call dfftw_execute_dft(fwd_guruplan_y, cy1, cy1)
-                call transpose_y_to_z(cy1, cz1, ph_info_x)
-                if (periodic(3)) then
-                    call dfftw_execute_dft(fwd_guruplan_z, cz1, cz1)
-                    call SpectralSolverZP(nxm*nym*nzm, ph_info_x)
-                    call dfftw_execute_dft(bwd_guruplan_z, cz1, cz1)
-                else
-                    call dfftw_execute_r2r(fwd_guruplan_z, cz1%re, cz1%re)
-                    call dfftw_execute_r2r(fwd_guruplan_z, cz1%im, cz1%im)
-                    call SpectralSolverZP(2*nxm*nym*nzm, ph_info_x)
-                    call dfftw_execute_r2r(bwd_guruplan_z, cz1%re, cz1%re)
-                    call dfftw_execute_r2r(bwd_guruplan_z, cz1%im, cz1%im)
-                end if
-                call transpose_z_to_y(cz1, cy1, ph_info_x)
-                call dfftw_execute_dft(bwd_guruplan_y, cy1, cy1)
-            else
-                call dfftw_execute_r2r(fwd_guruplan_y, cy1%re, cy1%re)
-                call dfftw_execute_r2r(fwd_guruplan_y, cy1%im, cy1%im)
-                call transpose_y_to_z(cy1, cz1, ph_info_x)
-                if (periodic(3)) then
-                    call dfftw_execute_dft(fwd_guruplan_z, cz1, cz1)
-                    call SpectralSolverZP(2*nxm*nym*nzm, ph_info_x)
-                    call dfftw_execute_dft(bwd_guruplan_z, cz1, cz1)
-                else
-                    call dfftw_execute_r2r(fwd_guruplan_z, cz1%re, cz1%re)
-                    call dfftw_execute_r2r(fwd_guruplan_z, cz1%im, cz1%im)
-                    call SpectralSolverZP(4*nxm*nym*nzm, ph_info_x)
-                    call dfftw_execute_r2r(bwd_guruplan_z, cz1%re, cz1%re)
-                    call dfftw_execute_r2r(bwd_guruplan_z, cz1%im, cz1%im)
-                end if
-                call transpose_z_to_y(cz1, cy1, ph_info_x)
-                call dfftw_execute_r2r(bwd_guruplan_y, cy1%re, cy1%re)
-                call dfftw_execute_r2r(bwd_guruplan_y, cy1%im, cy1%im)
-            end if
-            call transpose_y_to_x(cy1, cx1, ph_info_x)
-            call dfftw_execute_dft_c2r(bwd_guruplan_x, cx1, dph)
-        else
-            call dfftw_execute_r2r(fwd_guruplan_x, dph, rx1)
-            call transpose_x_to_y(rx1, ry1, ph_info_n)
-            if (periodic(2)) then
-                call dfftw_execute_dft_r2c(fwd_guruplan_y, ry1, cy1)
-                call transpose_y_to_z(cy1, cz1, ph_info_y)
-                if (periodic(3)) then
-                    call dfftw_execute_dft(fwd_guruplan_z, cz1, cz1)
-                    call SpectralSolverZP(2*nxm*nym*nzm, ph_info_y)
-                    call dfftw_execute_dft(bwd_guruplan_z, cz1, cz1)
-                else
-                    call dfftw_execute_r2r(fwd_guruplan_z, cz1%re, cz1%re)
-                    call dfftw_execute_r2r(fwd_guruplan_z, cz1%im, cz1%im)
-                    call SpectralSolverZP(4*nxm*nym*nzm, ph_info_y)
-                    call dfftw_execute_r2r(bwd_guruplan_z, cz1%re, cz1%re)
-                    call dfftw_execute_r2r(bwd_guruplan_z, cz1%im, cz1%im)
-                end if
-                call transpose_z_to_y(cz1, cy1, ph_info_y)
-                call dfftw_execute_dft_c2r(bwd_guruplan_y, cy1, ry1)
-            else
-                call dfftw_execute_r2r(fwd_guruplan_y, ry1, ry1)
-                call transpose_y_to_z(ry1, rz1, ph_info_n)
-                if (periodic(3)) then
-                    call dfftw_execute_dft_r2c(fwd_guruplan_z, rz1, cz1)
-                    call SpectralSolverZP(4*nxm*nym*nzm, ph_info_z)
-                    call dfftw_execute_dft_c2r(bwd_guruplan_z, cz1, rz1)
-                else
-                    call dfftw_execute_r2r(fwd_guruplan_z, rz1, rz1)
-                    call SpectralSolverZR(8*nxm*nym*nzm, ph_info_n)
-                    call dfftw_execute_r2r(bwd_guruplan_z, rz1, rz1)
-                end if
-                call transpose_z_to_y(rz1, ry1, ph_info_n)
-                call dfftw_execute_r2r(bwd_guruplan_y, ry1, ry1)
-            end if
-            call transpose_y_to_x(ry1, rx1, ph_info_n)
-            call dfftw_execute_r2r(bwd_guruplan_x, rx1, dph)
-        end if
+        if (ismaster) write(*,*) 'Error: Invalid helmholtz solver direction: ', hdir
+        call MpiAbort
     end if
 
 end subroutine SolvePressureCorrection
 
-subroutine SpectralSolverZP(norm,dcmp)
+! X-pencil: rhx(1:nxm, xstart(2):xend(2), xstart(3):xend(3)) is viewed as
+! a (nxm) x (xsize(2)*xsize(3)) matrix, so a single DGEMM transforms all lines.
+! The FFT plan also transforms all lines at once.
 
-    use param
+subroutine MultiplyEigenvectorsFW_X
+
     use decomp_2d
-    use fftw_params, only : cz1
+    use param
+    use local_arrays, only: rhx
+    use pressure_solver
 
     implicit none
 
-    integer, intent(in)             :: norm
-    type(decomp_info), intent(in)   :: dcmp
+    if (tmet(1).eq.TFFT) then
+        call fftw_execute_r2r(pfwx,rhx,rhx)
+        rhx = rhx*(1.0/fnrm(1))
+    else
+        call dgemm('N','N',nxm,gszx,nxm,1.0,qfwx,nxm,rhx,nxm,0.0,gwrk,nxm)
+        call dcopy(nxm*gszx,gwrk,1,rhx,1)
+    end if
 
-    integer                         :: ic,jc,kc
+end subroutine MultiplyEigenvectorsFW_X
 
-    do ic = dcmp%zst(1),dcmp%zen(1)
-        do jc = dcmp%zst(2),dcmp%zen(2)
-            do kc = dcmp%zst(3),dcmp%zen(3)
-                if ((ic.eq.1).and.(jc.eq.1).and.(kc.eq.1)) then
-                    cz1(ic,jc,kc) = 0.0
-                else
-                    cz1(ic,jc,kc) = -cz1(ic,jc,kc)/(real(norm)*(ak1(ic) + ak2(jc) + ak3(kc)))
-                end if
-            end do
-        end do
-    end do
+subroutine MultiplyEigenvectorsBW_X
 
-end subroutine SpectralSolverZP
-
-subroutine SpectralSolverZR(norm,dcmp)
-
-    use param
     use decomp_2d
-    use fftw_params, only : rz1
+    use param
+    use local_arrays, only: rhx
+    use pressure_solver
 
     implicit none
 
-    integer, intent(in)             :: norm
-    type(decomp_info), intent(in)   :: dcmp
+    if (tmet(1).eq.TFFT) then
+        call fftw_execute_r2r(pbwx,rhx,rhx)
+    else
+        call dgemm('N','N',nxm,gszx,nxm,1.0,qbwx,nxm,rhx,nxm,0.0,gwrk,nxm)
+        call dcopy(nxm*gszx,gwrk,1,rhx,1)
+    end if
 
-    integer                         :: ic,jc,kc
+end subroutine MultiplyEigenvectorsBW_X
 
-    do ic = dcmp%zst(1),dcmp%zen(1)
-        do jc = dcmp%zst(2),dcmp%zen(2)
-            do kc = dcmp%zst(3),dcmp%zen(3)
-                if ((ic.eq.1).and.(jc.eq.1).and.(kc.eq.1)) then
-                    rz1(ic,jc,kc) = 0.0
-                else
-                    rz1(ic,jc,kc) = -rz1(ic,jc,kc)/(real(norm)*(ak1(ic) + ak2(jc) + ak3(kc)))
-                end if
-            end do
+! Y-pencil: Y is the middle index, so each kc plane rhy(:,1:nym,kc) is
+! viewed as a (ysize(1)) x (nym) matrix and transformed with one DGEMM.
+! The FFT plan transforms all lines of all kc planes at once.
+
+subroutine MultiplyEigenvectorsFW_Y
+
+    use decomp_2d, only: ystart, yend
+    use param
+    use local_arrays, only: rhy
+    use pressure_solver
+
+    implicit none
+
+    integer :: kc
+
+    if (tmet(2).eq.TFFT) then
+        call fftw_execute_r2r(pfwy,rhy,rhy)
+        rhy = rhy*(1.0/fnrm(2))
+    else
+        do kc = ystart(3), yend(3)
+            call dgemm('N','T',gszy,nym,nym,1.0,rhy(ystart(1),1,kc),gszy,qfwy,nym,0.0,gwrk,gszy)
+            call dcopy(gszy*nym,gwrk,1,rhy(ystart(1),1,kc),1)
         end do
-    end do
+    end if
 
-end subroutine SpectralSolverZR
+end subroutine MultiplyEigenvectorsFW_Y
+
+subroutine MultiplyEigenvectorsBW_Y
+
+    use decomp_2d, only: ystart, yend
+    use param
+    use local_arrays, only: rhy
+    use pressure_solver
+
+    implicit none
+
+    integer :: kc
+
+    if (tmet(2).eq.TFFT) then
+        call fftw_execute_r2r(pbwy,rhy,rhy)
+    else
+        do kc = ystart(3), yend(3)
+            call dgemm('N','T',gszy,nym,nym,1.0,rhy(ystart(1),1,kc),gszy,qbwy,nym,0.0,gwrk,gszy)
+            call dcopy(gszy*nym,gwrk,1,rhy(ystart(1),1,kc),1)
+        end do
+    end if
+
+end subroutine MultiplyEigenvectorsBW_Y
+
+! Z-pencil: rhz(zstart(1):zend(1), zstart(2):zend(2), 1:nzm) is viewed as
+! a (zsize(1)*zsize(2)) x (nzm) matrix, so a single DGEMM transforms all lines.
+! The FFT plan also transforms all lines at once.
+
+subroutine MultiplyEigenvectorsFW_Z
+
+    use decomp_2d
+    use param
+    use local_arrays, only: rhz
+    use pressure_solver
+
+    implicit none
+
+    if (tmet(3).eq.TFFT) then
+        call fftw_execute_r2r(pfwz,rhz,rhz)
+        rhz = rhz*(1.0/fnrm(3))
+    else
+        call dgemm('N','T',gszz,nzm,nzm,1.0,rhz,gszz,qfwz,nzm,0.0,gwrk,gszz)
+        call dcopy(gszz*nzm,gwrk,1,rhz,1)
+    end if
+
+end subroutine MultiplyEigenvectorsFW_Z
+
+subroutine MultiplyEigenvectorsBW_Z
+
+    use decomp_2d
+    use param
+    use local_arrays, only: rhz
+    use pressure_solver
+
+    implicit none
+
+    if (tmet(3).eq.TFFT) then
+        call fftw_execute_r2r(pbwz,rhz,rhz)
+    else
+        call dgemm('N','T',gszz,nzm,nzm,1.0,rhz,gszz,qbwz,nzm,0.0,gwrk,gszz)
+        call dcopy(gszz*nzm,gwrk,1,rhz,1)
+    end if
+
+end subroutine MultiplyEigenvectorsBW_Z

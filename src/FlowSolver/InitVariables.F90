@@ -16,6 +16,7 @@ subroutine InitVariables
     use boundary_arrays
     use stat_arrays
     use movie_arrays
+    use tridiagonal_buffer
     use AuxiliaryRoutines
 
     implicit none
@@ -45,8 +46,6 @@ subroutine InitVariables
     call AllocateReal1DArray(acphi,1,nxm)
     call AllocateReal1DArray(apphi,1,nxm)
 
-    call AllocateReal1DArray(ak1,1,nx)
-    call AllocateReal1DArray(ao,1,nx)
 
     call AllocateReal1DArray(yc,1,ny)
     call AllocateReal1DArray(ym,0,ny)
@@ -69,8 +68,6 @@ subroutine InitVariables
     call AllocateReal1DArray(acphj,1,nym)
     call AllocateReal1DArray(apphj,1,nym)
 
-    call AllocateReal1DArray(ak2,1,ny)
-    call AllocateReal1DArray(ap,1,ny)
 
     call AllocateReal1DArray(zc,1,nz)
     call AllocateReal1DArray(zm,0,nz)
@@ -93,8 +90,6 @@ subroutine InitVariables
     call AllocateReal1DArray(acphk,1,nzm)
     call AllocateReal1DArray(apphk,1,nzm)
 
-    call AllocateReal1DArray(ak3,1,nz)
-    call AllocateReal1DArray(aq,1,nz)
 
     !-------------------------------------------------
     ! Arrays for statistical profiles
@@ -182,7 +177,7 @@ subroutine InitVariables
     ! Arrays without ghost cells
     !-----------------------------------------------
 
-    call AllocateReal3DArray(dph,xstart(1),xend(1),xstart(2),xend(2),xstart(3),xend(3))
+    ! call AllocateReal3DArray(dph,xstart(1),xend(1),xstart(2),xend(2),xstart(3),xend(3))   ! Will be used in a future feature
 
     call AllocateReal3DArray(adx,xstart(1),xend(1),xstart(2),xend(2),xstart(3),xend(3))
     call AllocateReal3DArray(ady,xstart(1),xend(1),xstart(2),xend(2),xstart(3),xend(3))
@@ -201,6 +196,13 @@ subroutine InitVariables
     call AllocateReal3DArray(rhx,xstart(1),xend(1),xstart(2),xend(2),xstart(3),xend(3))
     call AllocateReal3DArray(rhy,ystart(1),yend(1),ystart(2),yend(2),ystart(3),yend(3))
     call AllocateReal3DArray(rhz,zstart(1),zend(1),zstart(2),zend(2),zstart(3),zend(3))
+
+    !-----------------------------------------------
+    ! Arrays for tridiagonal solver (Thomas algorithm)
+    !-----------------------------------------------
+    tdsz = max(nxm, ysize(1)*nym, zsize(1)*nzm)
+    call AllocateReal1DArray(twk1,1,tdsz)
+    call AllocateReal1DArray(twk2,1,tdsz)
 
     return
 

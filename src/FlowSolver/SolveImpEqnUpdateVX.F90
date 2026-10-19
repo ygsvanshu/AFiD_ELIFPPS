@@ -1,7 +1,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                         ! 
-!    FILE: SolveImpEqnUpdateVY.F90                        !
-!    CONTAINS: subroutine SolveImpEqnUpdateVY             !
+!    FILE: SolveImpEqnUpdateVX.F90                        !
+!    CONTAINS: subroutine SolveImpEqnUpdateVX             !
 !                                                         ! 
 !    PURPOSE: Inverts the implicit equation for vx        !
 !    and updates it to time t + (al*dt)                   !
@@ -17,12 +17,12 @@ subroutine SolveImpEqnUpdateVX
 
     implicit none
 
-    call TridiagonalSolverXC(1)
+    call TridiagonalSolverXC(1,(1.0/rey))
     call transpose_x_to_y(rhx,rhy)
-    call TridiagonalSolverYM(1)
+    call TridiagonalSolverYM(1,(1.0/rey))
     if (nzm.gt.1) then
         call transpose_y_to_z(rhy,rhz)
-        call TridiagonalSolverZM(1)
+        call TridiagonalSolverZM(1,(1.0/rey))
         call transpose_z_to_x(rhz,rhx)
     else
         call transpose_y_to_x(rhy,rhx)

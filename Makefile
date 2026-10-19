@@ -31,6 +31,7 @@ FFLAGS += -O3
 # Advanced Fortran compiler options
 #--------------------------------------------------------------
 
+FFLAGS += -march=native
 #FFLAGS += -fma -finline-functions
 #FFLAGS += -align array64byte
 #FFLAGS += -heap-arrays -ip -fno-alias -xHost
@@ -42,12 +43,9 @@ FFLAGS += -O3
 # System specific libaries
 #--------------------------------------------------------------
 
-# Local
-# FFTW_LIB = -L/usr/local/lib/
-
 # Common build flags
-FFTW_FLAGS = -lfftw3
-BLAS_FLAGS = -llapack
+FFTW_FLAGS = -lfftw3 -I$(FFTW_INCLUDE)
+BLAS_FLAGS = -llapack -lopenblas
 HDF5_FLAGS = -lhdf5_fortran -lhdf5 -lz -ldl -lm
 
 LDFLAGS = $(FFTW_FLAGS) $(BLAS_FLAGS) # $(HDF5_FLAGS)

@@ -16,6 +16,7 @@ subroutine DeallocateVariables
     use boundary_arrays
     use stat_arrays
     use movie_arrays
+    use tridiagonal_buffer
     use AuxiliaryRoutines
 
     implicit none
@@ -41,9 +42,6 @@ subroutine DeallocateVariables
     call DestroyReal1DArray(acphi)
     call DestroyReal1DArray(apphi)
 
-    call DestroyReal1DArray(ak1)
-    call DestroyReal1DArray(ao)
-
 
     call DestroyReal1DArray(yc)
     call DestroyReal1DArray(ym)
@@ -65,9 +63,6 @@ subroutine DeallocateVariables
     call DestroyReal1DArray(amphj)
     call DestroyReal1DArray(acphj)
     call DestroyReal1DArray(apphj)
-
-    call DestroyReal1DArray(ak2)
-    call DestroyReal1DArray(ap)
 
 
     call DestroyReal1DArray(zc)
@@ -91,8 +86,6 @@ subroutine DeallocateVariables
     call DestroyReal1DArray(acphk)
     call DestroyReal1DArray(apphk)
 
-    call DestroyReal1DArray(ak3)
-    call DestroyReal1DArray(aq)
 
     !-------------------------------------------------
     ! Arrays for statistical profiles
@@ -194,8 +187,8 @@ subroutine DeallocateVariables
     !-----------------------------------------------
     ! Arrays without ghost cells
     !-----------------------------------------------
-
-    call DestroyReal3DArray(dph)
+    
+    ! call DestroyReal3DArray(dph)  ! Will be used in a future feature
 
     call DestroyReal3DArray(adx)
     call DestroyReal3DArray(ady)
@@ -214,6 +207,12 @@ subroutine DeallocateVariables
     call DestroyReal3DArray(rhx)
     call DestroyReal3DArray(rhy)
     call DestroyReal3DArray(rhz)
+
+    !-----------------------------------------------
+    ! Arrays for tridiagonal solver (Thomas algorithm)
+    !-----------------------------------------------
+    call DestroyReal1DArray(twk1)
+    call DestroyReal1DArray(twk2)
 
     return 
 

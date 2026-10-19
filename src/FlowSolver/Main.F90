@@ -37,6 +37,8 @@ program AFiD
 
     if (nrank.eq.master) ismaster = .true.
 
+    call PrintSplashScreen
+
     ! Get MPI communicator and ranks
     mpi_comm = DECOMP_2D_COMM_CART_X
     call MPI_COMM_RANK(DECOMP_2D_COMM_CART_X,mpi_rank,mpi_ierr)
@@ -61,6 +63,7 @@ program AFiD
     call InitVariables
     call CreateGrid
     call InitPressureSolver
+    call ChooseBestPressureSolver(.true.)
     if (save1d) call InitProfiles
     if (save2d) call InitMovie
 

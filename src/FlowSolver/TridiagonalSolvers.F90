@@ -9,109 +9,126 @@
 !              subroutine TridiagonalSolverZM                  !
 !              subroutine TridiagonalSolverZC                  !
 !                                                              !
-!              subroutine TridiagonalSolverXP                  !
 !              subroutine TridiagonalSolverXR                  !
-!              subroutine TridiagonalSolverYP                  !
 !              subroutine TridiagonalSolverYR                  !
-!              subroutine TridiagonalSolverZP                  !
 !              subroutine TridiagonalSolverZR                  !
+!                                                              !
+!              subroutine ThomasBatched                        !
+!              subroutine ThomasBatchedPeriodic                !
 !                                                              !
 !    PURPOSE: subroutines that are used for                    !
 !             solving tridiagonal systems for diffusive        !
 !             terms of the Navier-Stokes or Pressure-Poisson   !
 !             equations implicitly                             !
 !                                                              !
+!    All solvers call the batched Thomas algorithm, which      !
+!    solves many independent lines at once. Arrays are passed  !
+!    to it by their first element, e.g. rhy(ystart(1),1,kc),   !
+!    together with the memory distance between two rows of a   !
+!    line (ld). In X a single line is solved per call, in Y    !
+!    all lines of a kc plane, and in Z all lines of a jc row.  !
+!                                                              !
+!    NAMING                                                    !
+!    ------                                                    !
+!    Suffix M : variable on cell centres in the solve          !
+!               direction (e.g. vy, vz, tp in X), rows 1:n     !
+!    Suffix C : variable on cell faces in the solve direction  !
+!               (e.g. vx in X). Without periodicity, face 1    !
+!               lies on the boundary and is not solved for,    !
+!               rows 2:n are solved                            !
+!    Suffix R : pressure correction (Helmholtz) equation       !
+!                                                              !
+!    am, ac, ap  : sub-, main and super-diagonal coefficients  !
+!    sh          : shift of the main diagonal per line         !
+!    dcs, dce    : boundary correction of the first/last main  !
+!                  diagonal entry per line                     !
+!    suffix il/jl/kl : line along X/Y/Z (as in the old code)   !
+!                                                              !
+!    WHY BATCHED                                               !
+!    -----------                                               !
+!    Along a line, the Thomas algorithm is a recurrence (row k !
+!    needs row k-1) and cannot be vectorised. Different lines  !
+!    are independent, so the kernels loop over the lines in    !
+!    the innermost loop. These are contiguous in memory for    !
+!    Y and Z pencils, so the compiler vectorises them.         !
+!                                                              !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !------------------- FOR MOMENTUM EQUATIONS -------------------!
+!                                                              !
+! Each routine solves, along one direction, the factor of the  !
+! approximately factorised implicit diffusion operator:        !
+!                                                              !
+!   (1 - betadx*D2) dq = rhs,   betadx = 0.5*al*dt*difc        !
+!                                                              !
+! where D2 is the second derivative with stencil coefficients  !
+! am/ac/ap (e.g. am1ci, ac1ci, ap1ci from param) and difc is   !
+! the diffusion coefficient (1/Re for velocity, 1/(Re*Pr) for  !
+! temperature). The rows are used unscaled:                    !
+!                                                              !
+!   -betadx*am(k)*dq(k-1) + (1 - betadx*ac(k))*dq(k)           !
+!   -betadx*ap(k)*dq(k+1) = rhs(k)                             !
+!                                                              !
+! Boundary conditions: the ghost value outside the domain is   !
+! written as dq(0) = cf*dq(1), with cf = cfbc*s/e computed in  !
+! CalcBoundaryCondition* (bcid selects vx/vy/vz/tp). The ghost !
+! term am(1)*dq(0) then becomes cf*am(1)*dq(1), which is added !
+! to the first main diagonal entry (dcs). The same holds at    !
+! the end of the line (dce). For periodic directions the       !
+! periodic kernel is used and no boundary terms are needed.    !
+!                                                              !
+! The momentum equations have no diagonal shift (sh = 0).      !
+!                                                              !
+!--------------------------------------------------------------!
 
-subroutine TridiagonalSolverXM(bcid)
+subroutine TridiagonalSolverXM(bcid,difc)
 
     use param
     use decomp_2d, only: xstart,xend
-    use local_arrays ,only : rhx
+    use local_arrays, only: rhx
     use boundary_arrays, only: cfbcxs,cfbcxe
+    use tridiagonal_buffer
 
     implicit none
 
-    integer, intent(in) :: bcid
+    integer, intent(in) :: bcid     ! Boundary condition index
+    real, intent(in)    :: difc     ! Diffusion coefficient (1/Re or 1/(Re*Pr))
 
-    real                :: amil(nxm),apil(nxm),acil(nxm),appi(nxm)
-    real                :: rx1d(nxm)
-    real                :: uflx(nxm),vflx(nxm),qflx
-    integer             :: ipiv(nxm)
-    integer             :: ic,jc,kc,info
-    real                :: acil_b
-    real                :: betadx,gvalue
-    
-    betadx = 0.5*al*dt/rey
-        
+    real                :: amil(nxm),acil(nxm),apil(nxm)
+    real                :: shil(1),dcis(1),dcie(1)
+    real                :: betadx
+    integer             :: ic,jc,kc
+
+    betadx = 0.5*al*dt*difc
+
+    ! Coefficients of (1 - betadx*D2) along X for a cell-centred variable
+    do ic = 1,nxm
+        amil(ic) = -am1ci(ic)*betadx
+        acil(ic) =  1.0 - ac1ci(ic)*betadx
+        apil(ic) = -ap1ci(ic)*betadx
+    end do
+
+    ! No diagonal shift for the momentum equations
+    shil(1) = 0.0
+
     if (periodic(1)) then
 
-        do jc = xstart(2),xend(2)
-            do kc = xstart(3),xend(3)
-
-                do ic = 1,nxm
-                    acil_b   =  1.0/(1.0 - ac1ci(ic)*betadx)
-                    amil(ic) = -am1ci(ic)*betadx*acil_b
-                    acil(ic) =  1.0
-                    apil(ic) = -ap1ci(ic)*betadx*acil_b
-                    rx1d(ic) =  rhx(ic,jc,kc)*acil_b
-                    uflx(ic) =  0.0
-                    vflx(ic) =  0.0
-                end do
-
-                gvalue    = (amil(1)*apil(nxm))**0.5
-
-                acil(1)   =  acil(1)   - gvalue
-                acil(nxm) =  acil(nxm) - ((amil(1)*apil(nxm))/gvalue)
-
-                uflx(1)   = gvalue
-                uflx(nxm) = apil(nxm)
-
-                vflx(1)   = 1.0
-                vflx(nxm) = amil(1)/gvalue
-
-                call dgttrf(nxm,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,info)
-                call dgttrs('N',nxm,1,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,rx1d,nxm,info)
-                call dgttrs('N',nxm,1,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,uflx,nxm,info)
-
-                qflx = (vflx(1)*rx1d(1) + vflx(nxm)*rx1d(nxm))/(1.0 + (vflx(1)*uflx(1) + vflx(nxm)*uflx(nxm)))
-
-                do ic = 1,nxm               
-                    rhx(ic,jc,kc) = rx1d(ic) - (qflx*uflx(ic))
-                enddo
-            
+        ! One line per call: rhx(1:nxm,jc,kc) is contiguous (nl = 1, ld = 1)
+        do kc = xstart(3),xend(3)
+            do jc = xstart(2),xend(2)
+                call ThomasBatchedPeriodic(1,nxm,1,amil,acil,apil,shil,rhx(1,jc,kc),twk1(1),twk2(1))
             end do
         end do
 
     else
 
-        do jc = xstart(2),xend(2)
-            do kc = xstart(3),xend(3)
-
-                do ic = 1,nxm
-                    acil_b   =  1.0/(1.0 - ac1ci(ic)*betadx)
-                    amil(ic) = -am1ci(ic)*betadx*acil_b
-                    acil(ic) =  1.0
-                    apil(ic) = -ap1ci(ic)*betadx*acil_b
-                    rx1d(ic) =  rhx(ic,jc,kc)*acil_b
-                end do
-
-                ! Lower boundary
-                acil(1) = acil(1) + cfbcxs(jc,kc,bcid)*amil(1)
-
-                ! Upper boundary
-                acil(nxm) = acil(nxm) + cfbcxe(jc,kc,bcid)*apil(nxm)
-
-                ! Solve
-                call dgttrf(nxm,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,info)
-                call dgttrs('N',nxm,1,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,rx1d,nxm,info)
-
-                do ic = 1,nxm
-                    rhx(ic,jc,kc) = rx1d(ic)
-                end do
-
+        ! One line per call, with the boundary conditions of line (jc,kc)
+        ! folded into its first and last main diagonal entry
+        do kc = xstart(3),xend(3)
+            do jc = xstart(2),xend(2)
+                dcis(1) = cfbcxs(jc,kc,bcid)*amil(1)
+                dcie(1) = cfbcxe(jc,kc,bcid)*apil(nxm)
+                call ThomasBatched(1,nxm,1,amil,acil,apil,shil,dcis,dcie,rhx(1,jc,kc),twk1(1))
             end do
         end do
 
@@ -121,95 +138,57 @@ subroutine TridiagonalSolverXM(bcid)
 
 end subroutine TridiagonalSolverXM
 
-subroutine TridiagonalSolverXC(bcid)
+subroutine TridiagonalSolverXC(bcid,difc)
 
     use param
     use decomp_2d, only: xstart,xend
-    use local_arrays ,only : rhx
+    use local_arrays, only: rhx
     use boundary_arrays, only: cfbcxs,cfbcxe
+    use tridiagonal_buffer
 
     implicit none
 
-    integer, intent(in) :: bcid
+    integer, intent(in) :: bcid     ! Boundary condition index
+    real, intent(in)    :: difc     ! Diffusion coefficient (1/Re or 1/(Re*Pr))
 
-    real                :: amil(nxm),apil(nxm),acil(nxm),appi(nxm)
-    real                :: rx1d(nxm)
-    real                :: uflx(nxm),vflx(nxm),qflx
-    integer             :: ipiv(nxm)
-    integer             :: ic,jc,kc,info
-    real                :: acil_b
-    real                :: betadx,gvalue
-    
-    betadx = 0.5*al*dt/rey
+    real                :: amil(nxm),acil(nxm),apil(nxm)
+    real                :: shil(1),dcis(1),dcie(1)
+    real                :: betadx
+    integer             :: ic,jc,kc
+
+    betadx = 0.5*al*dt*difc
+
+    ! Coefficients of (1 - betadx*D2) along X for a face-centred variable
+    do ic = 1,nxm
+        amil(ic) = -am1si(ic)*betadx
+        acil(ic) =  1.0 - ac1si(ic)*betadx
+        apil(ic) = -ap1si(ic)*betadx
+    end do
+
+    ! No diagonal shift for the momentum equations
+    shil(1) = 0.0
 
     if (periodic(1)) then
 
-        do jc = xstart(2),xend(2)
-            do kc = xstart(3),xend(3)
-
-                do ic = 1,nxm
-                    acil_b   =  1.0/(1.0 - ac1si(ic)*betadx)
-                    amil(ic) = -am1si(ic)*betadx*acil_b
-                    acil(ic) =  1.0
-                    apil(ic) = -ap1si(ic)*betadx*acil_b
-                    rx1d(ic) =  rhx(ic,jc,kc)*acil_b
-                    uflx(ic) =  0.0
-                    vflx(ic) =  0.0
-                end do
-
-                gvalue    = (amil(1)*apil(nxm))**0.5
-
-                acil(1)   =  acil(1)   - gvalue
-                acil(nxm) =  acil(nxm) - ((amil(1)*apil(nxm))/gvalue)
-
-                uflx(1)   = gvalue
-                uflx(nxm) = apil(nxm)
-
-                vflx(1)   = 1.0
-                vflx(nxm) = amil(1)/gvalue
-
-                call dgttrf(nxm,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,info)
-                call dgttrs('N',nxm,1,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,rx1d,nxm,info)
-                call dgttrs('N',nxm,1,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,uflx,nxm,info)
-
-                qflx = (vflx(1)*rx1d(1) + vflx(nxm)*rx1d(nxm))/(1.0 + (vflx(1)*uflx(1) + vflx(nxm)*uflx(nxm)))
-
-                do ic = 1,nxm               
-                    rhx(ic,jc,kc) = rx1d(ic) - (qflx*uflx(ic))
-                enddo
-
+        ! One line per call: rhx(1:nxm,jc,kc) is contiguous (nl = 1, ld = 1)
+        do kc = xstart(3),xend(3)
+            do jc = xstart(2),xend(2)
+                call ThomasBatchedPeriodic(1,nxm,1,amil,acil,apil,shil,rhx(1,jc,kc),twk1(1),twk2(1))
             end do
         end do
 
     else
 
-        do jc = xstart(2),xend(2)
-            do kc = xstart(3),xend(3)
-
-                do ic = 2,nxm
-                    acil_b   =  1.0/(1.0 - ac1si(ic)*betadx)
-                    amil(ic) = -am1si(ic)*betadx*acil_b
-                    acil(ic) =  1.0
-                    apil(ic) = -ap1si(ic)*betadx*acil_b
-                    rx1d(ic) =  rhx(ic,jc,kc)*acil_b
-                end do
-
-                ! Lower boundary
-                acil(2) = acil(2) + cfbcxs(jc,kc,bcid)*amil(2)
-
-                ! Upper boundary
-                acil(nxm) = acil(nxm) + cfbcxe(jc,kc,bcid)*apil(nxm)
-
-                ! Solve
-                call dgttrf(nxm-1,amil(3:nxm),acil(2:nxm),apil(2:nxm-1),appi(2:nxm-2),ipiv,info)
-                call dgttrs('N',nxm-1,1,amil(3:nxm),acil(2:nxm),apil(2:nxm-1),appi(2:nxm-2),ipiv,rx1d(2:nxm),nxm-1,info)
-
-                do ic = 2,nxm
-                    rhx(ic,jc,kc) = rx1d(ic)
-                end do
-
+        ! Face ic = 1 lies on the boundary and is not solved for: its value is
+        ! imposed by the boundary routines, so its increment is zero. Rows 2:nxm
+        ! are solved by passing all arrays from their 2nd element on, and the
+        ! boundary condition is folded into row 2 through amil(2).
+        do kc = xstart(3),xend(3)
+            do jc = xstart(2),xend(2)
+                dcis(1) = cfbcxs(jc,kc,bcid)*amil(2)
+                dcie(1) = cfbcxe(jc,kc,bcid)*apil(nxm)
+                call ThomasBatched(1,nxm-1,1,amil(2),acil(2),apil(2),shil,dcis,dcie,rhx(2,jc,kc),twk1(1))
                 rhx(1,jc,kc) = 0.0
-
             end do
         end do
 
@@ -219,94 +198,52 @@ subroutine TridiagonalSolverXC(bcid)
 
 end subroutine TridiagonalSolverXC
 
-subroutine TridiagonalSolverYM(bcid)
+subroutine TridiagonalSolverYM(bcid,difc)
 
     use param
-    use decomp_2d, only: ystart,yend
-    use local_arrays ,only : rhy
+    use decomp_2d, only: ystart,yend,ysize
+    use local_arrays, only: rhy
     use boundary_arrays, only: cfbcys,cfbcye
+    use tridiagonal_buffer
 
     implicit none
 
-    integer, intent(in) :: bcid
+    integer, intent(in) :: bcid     ! Boundary condition index
+    real, intent(in)    :: difc     ! Diffusion coefficient (1/Re or 1/(Re*Pr))
 
-    real                :: amjl(nym),apjl(nym),acjl(nym),appj(nym)
-    real                :: ry1d(nym)
-    real                :: ufly(nym),vfly(nym),qfly
-    integer             :: ipjv(nym)
-    integer             :: ic,jc,kc,info
-    real                :: acjl_b
-    real                :: betadx,gvalue
-    
-    betadx = 0.5*al*dt/rey
+    real                :: amjl(nym),acjl(nym),apjl(nym)
+    real                :: shjl(ysize(1)),dcjs(ysize(1)),dcje(ysize(1))
+    real                :: betadx
+    integer             :: jc,kc
+
+    betadx = 0.5*al*dt*difc
+
+    ! Coefficients of (1 - betadx*D2) along Y for a cell-centred variable
+    do jc = 1,nym
+        amjl(jc) = -am2cj(jc)*betadx
+        acjl(jc) =  1.0 - ac2cj(jc)*betadx
+        apjl(jc) = -ap2cj(jc)*betadx
+    end do
+
+    ! No diagonal shift for the momentum equations
+    shjl(:) = 0.0
 
     if (periodic(2)) then
-    
-    do ic = ystart(1),yend(1)
+
+        ! All ysize(1) lines of a kc plane per call: row jc of line ic is
+        ! rhy(ic,jc,kc), so lines are contiguous and rows are ysize(1) apart
         do kc = ystart(3),yend(3)
-
-                do jc = 1,nym
-                    acjl_b   = 1.0/(1.0 - ac2cj(jc)*betadx)
-                    amjl(jc) = -am2cj(jc)*betadx*acjl_b
-                    acjl(jc) = 1.0
-                    apjl(jc) = -ap2cj(jc)*betadx*acjl_b
-                    ry1d(jc) = rhy(ic,jc,kc)*acjl_b
-                    ufly(jc) =  0.0
-                    vfly(jc) =  0.0
-                end do
-
-                gvalue    = (amjl(1)*apjl(nym))**0.5
-
-                acjl(1)   =  acjl(1)   - gvalue
-                acjl(nym) =  acjl(nym) - ((amjl(1)*apjl(nym))/gvalue)
-
-                ufly(1)   = gvalue
-                ufly(nym) = apjl(nym)
-
-                vfly(1)   = 1.0
-                vfly(nym) = amjl(1)/gvalue
-
-                call dgttrf(nym,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,info)
-                call dgttrs('N',nym,1,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,ry1d,nym,info)
-                call dgttrs('N',nym,1,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,ufly,nym,info)
-
-                qfly = (vfly(1)*ry1d(1) + vfly(nym)*ry1d(nym))/(1.0 + (vfly(1)*ufly(1) + vfly(nym)*ufly(nym)))
-
-                do jc = 1,nym                
-                    rhy(ic,jc,kc) = ry1d(jc) - (qfly*ufly(jc))
-                enddo
-
-            end do
+            call ThomasBatchedPeriodic(ysize(1),nym,ysize(1),amjl,acjl,apjl,shjl,rhy(ystart(1),1,kc),twk1(1),twk2(1))
         end do
 
     else
 
-        do ic = ystart(1),yend(1)
-            do kc = ystart(3),yend(3)    
-
-                do jc = 1,nym
-                    acjl_b   = 1.0/(1.0 - ac2cj(jc)*betadx)
-                    amjl(jc) = -am2cj(jc)*betadx*acjl_b
-                    acjl(jc) = 1.0
-                    apjl(jc) = -ap2cj(jc)*betadx*acjl_b
-                    ry1d(jc) = rhy(ic,jc,kc)*acjl_b
-                end do
-
-                ! Lower boundary
-                acjl(1) = acjl(1) + cfbcys(ic,kc,bcid)*amjl(1)
-
-                ! Upper boundary
-                acjl(nym) = acjl(nym) + cfbcye(ic,kc,bcid)*apjl(nym)
-
-                ! Solve
-                call dgttrf(nym,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,info)
-                call dgttrs('N',nym,1,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,ry1d,nym,info)
-
-                do jc = 1,nym
-                    rhy(ic,jc,kc) = ry1d(jc)
-                end do
-
-            end do
+        ! All lines of a kc plane per call, with the boundary conditions of
+        ! each line ic folded into its first and last main diagonal entry
+        do kc = ystart(3),yend(3)
+            dcjs(:) = cfbcys(ystart(1):yend(1),kc,bcid)*amjl(1)
+            dcje(:) = cfbcye(ystart(1):yend(1),kc,bcid)*apjl(nym)
+            call ThomasBatched(ysize(1),nym,ysize(1),amjl,acjl,apjl,shjl,dcjs,dcje,rhy(ystart(1),1,kc),twk1(1))
         end do
 
     end if
@@ -315,96 +252,55 @@ subroutine TridiagonalSolverYM(bcid)
 
 end subroutine TridiagonalSolverYM
 
-subroutine TridiagonalSolverYC(bcid)
+subroutine TridiagonalSolverYC(bcid,difc)
 
     use param
-    use decomp_2d, only: ystart,yend
-    use local_arrays ,only : rhy
+    use decomp_2d, only: ystart,yend,ysize
+    use local_arrays, only: rhy
     use boundary_arrays, only: cfbcys,cfbcye
+    use tridiagonal_buffer
 
     implicit none
 
-    integer, intent(in) :: bcid
+    integer, intent(in) :: bcid     ! Boundary condition index
+    real, intent(in)    :: difc     ! Diffusion coefficient (1/Re or 1/(Re*Pr))
 
-    real                :: amjl(nym),apjl(nym),acjl(nym),appj(nym)
-    real                :: ry1d(nym)
-    real                :: ufly(nym),vfly(nym),qfly
-    integer             :: ipjv(nym)
-    integer             :: ic,jc,kc,info
-    real                :: acjl_b
-    real                :: betadx,gvalue
-    
-    betadx = 0.5*al*dt/rey
-    
+    real                :: amjl(nym),acjl(nym),apjl(nym)
+    real                :: shjl(ysize(1)),dcjs(ysize(1)),dcje(ysize(1))
+    real                :: betadx
+    integer             :: jc,kc
+
+    betadx = 0.5*al*dt*difc
+
+    ! Coefficients of (1 - betadx*D2) along Y for a face-centred variable
+    do jc = 1,nym
+        amjl(jc) = -am2sj(jc)*betadx
+        acjl(jc) =  1.0 - ac2sj(jc)*betadx
+        apjl(jc) = -ap2sj(jc)*betadx
+    end do
+
+    ! No diagonal shift for the momentum equations
+    shjl(:) = 0.0
+
     if (periodic(2)) then
 
-        do ic = ystart(1),yend(1)
-            do kc = ystart(3),yend(3)
-
-                do jc = 1,nym
-                    acjl_b   = 1.0/(1.0 - ac2sj(jc)*betadx)
-                    amjl(jc) = -am2sj(jc)*betadx*acjl_b
-                    acjl(jc) = 1.0
-                    apjl(jc) = -ap2sj(jc)*betadx*acjl_b
-                    ry1d(jc) = rhy(ic,jc,kc)*acjl_b
-                    ufly(jc) =  0.0
-                    vfly(jc) =  0.0
-                end do
-
-                gvalue    = (amjl(1)*apjl(nym))**0.5
-
-                acjl(1)   =  acjl(1)   - gvalue
-                acjl(nym) =  acjl(nym) - ((amjl(1)*apjl(nym))/gvalue)
-
-                ufly(1)   = gvalue
-                ufly(nym) = apjl(nym)
-
-                vfly(1)   = 1.0
-                vfly(nym) = amjl(1)/gvalue
-
-                call dgttrf(nym,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,info)
-                call dgttrs('N',nym,1,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,ry1d,nym,info)
-                call dgttrs('N',nym,1,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,ufly,nym,info)
-
-                qfly = (vfly(1)*ry1d(1) + vfly(nym)*ry1d(nym))/(1.0 + (vfly(1)*ufly(1) + vfly(nym)*ufly(nym)))
-
-                do jc = 1,nym                
-                    rhy(ic,jc,kc) = ry1d(jc) - (qfly*ufly(jc))
-                enddo
-
-            end do
+        ! All ysize(1) lines of a kc plane per call: row jc of line ic is
+        ! rhy(ic,jc,kc), so lines are contiguous and rows are ysize(1) apart
+        do kc = ystart(3),yend(3)
+            call ThomasBatchedPeriodic(ysize(1),nym,ysize(1),amjl,acjl,apjl,shjl,rhy(ystart(1),1,kc),twk1(1),twk2(1))
         end do
 
     else
 
-        do ic = ystart(1),yend(1)
-            do kc = ystart(3),yend(3)
-
-                do jc = 2,nym
-                    acjl_b   = 1.0/(1.0 - ac2sj(jc)*betadx)
-                    amjl(jc) = -am2sj(jc)*betadx*acjl_b
-                    acjl(jc) = 1.0
-                    apjl(jc) = -ap2sj(jc)*betadx*acjl_b
-                    ry1d(jc) = rhy(ic,jc,kc)*acjl_b
-                end do
-
-                ! Lower boundary
-                acjl(2) = acjl(2) + cfbcys(ic,kc,bcid)*amjl(2)
-
-                ! Upper boundary
-                acjl(nym) = acjl(nym) + cfbcye(ic,kc,bcid)*apjl(nym)
-
-                ! Solve
-                call dgttrf(nym-1,amjl(3:nym),acjl(2:nym),apjl(2:nym-1),appj(2:nym-2),ipjv,info)
-                call dgttrs('N',nym-1,1,amjl(3:nym),acjl(2:nym),apjl(2:nym-1),appj(2:nym-2),ipjv,ry1d(2:nym),nym-1,info)
-
-                do jc = 2,nym
-                    rhy(ic,jc,kc) = ry1d(jc)
-                end do
-
-                rhy(ic,1,kc) = 0.0
-
-            end do
+        ! Face jc = 1 lies on the boundary and is not solved for: its value is
+        ! imposed by the boundary routines, so its increment is zero. Rows 2:nym
+        ! are solved by passing all arrays from their 2nd element on, and the
+        ! boundary condition is folded into row 2 through amjl(2).
+        do kc = ystart(3),yend(3)
+            dcjs(:) = cfbcys(ystart(1):yend(1),kc,bcid)*amjl(2)
+            dcje(:) = cfbcye(ystart(1):yend(1),kc,bcid)*apjl(nym)
+            call ThomasBatched(ysize(1),nym-1,ysize(1),amjl(2),acjl(2),apjl(2),shjl,dcjs,dcje,rhy(ystart(1),2,kc),twk1(1))
+            rhy(ystart(1):yend(1),1,kc) = 0.0
         end do
 
     end if
@@ -413,94 +309,54 @@ subroutine TridiagonalSolverYC(bcid)
 
 end subroutine TridiagonalSolverYC
 
-subroutine TridiagonalSolverZM(bcid)
+subroutine TridiagonalSolverZM(bcid,difc)
 
     use param
-    use decomp_2d, only: zstart,zend
+    use decomp_2d, only: zstart,zend,zsize
     use local_arrays, only: rhz
     use boundary_arrays, only: cfbczs,cfbcze
+    use tridiagonal_buffer
 
     implicit none
 
-    integer, intent(in) :: bcid
-    
-    real                :: amkl(nzm),apkl(nzm),ackl(nzm),appk(nzm)
-    real                :: rz1d(nzm)
-    real                :: uflz(nzm),vflz(nzm),qflz
-    integer             :: ipkv(nzm)
-    integer             :: ic,jc,kc,info
-    real                :: ackl_b
-    real                :: betadx,gvalue
-    
-    betadx = 0.5*al*dt/rey
+    integer, intent(in) :: bcid     ! Boundary condition index
+    real, intent(in)    :: difc     ! Diffusion coefficient (1/Re or 1/(Re*Pr))
+
+    real                :: amkl(nzm),ackl(nzm),apkl(nzm)
+    real                :: shkl(zsize(1)),dcks(zsize(1)),dcke(zsize(1))
+    real                :: betadx
+    integer             :: jc,kc,ldz
+
+    betadx = 0.5*al*dt*difc
+
+    ! Coefficients of (1 - betadx*D2) along Z for a cell-centred variable
+    do kc = 1,nzm
+        amkl(kc) = -am3ck(kc)*betadx
+        ackl(kc) =  1.0 - ac3ck(kc)*betadx
+        apkl(kc) = -ap3ck(kc)*betadx
+    end do
+
+    ! No diagonal shift for the momentum equations
+    shkl(:) = 0.0
+
+    ! All zsize(1) lines of a jc row per call: row kc of line ic is
+    ! rhz(ic,jc,kc), so lines are contiguous and rows are ldz apart
+    ldz     = zsize(1)*zsize(2)
 
     if (periodic(3)) then
 
-        do ic = zstart(1),zend(1)
-            do jc = zstart(2),zend(2)
-
-                do kc = 1,nzm
-                    ackl_b   =  1.0/(1.0 - ac3ck(kc)*betadx)
-                    amkl(kc) = -am3ck(kc)*betadx*ackl_b
-                    ackl(kc) =  1.0
-                    apkl(kc) = -ap3ck(kc)*betadx*ackl_b
-                    rz1d(kc) =  rhz(ic,jc,kc)*ackl_b
-                    uflz(kc) =  0.0
-                    vflz(kc) =  0.0
-                end do
-
-                gvalue    = (amkl(1)*apkl(nzm))**0.5
-
-                ackl(1)   = ackl(1)   - gvalue
-                ackl(nzm) = ackl(nzm) - ((amkl(1)*apkl(nzm))/gvalue)
-
-                uflz(1)   = gvalue
-                uflz(nzm) = apkl(nzm)
-
-                vflz(1)   = 1.0
-                vflz(nzm) = amkl(1)/gvalue
-
-                call dgttrf(nzm,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,info)
-                call dgttrs('N',nzm,1,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,rz1d,nzm,info)
-                call dgttrs('N',nzm,1,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,uflz,nzm,info)
-
-                qflz = (vflz(1)*rz1d(1) + vflz(nzm)*rz1d(nzm))/(1.0 + (vflz(1)*uflz(1) + vflz(nzm)*uflz(nzm)))
-
-                do kc = 1,nzm                
-                    rhz(ic,jc,kc) = rz1d(kc) - (qflz*uflz(kc))
-                enddo
-
-            end do
+        do jc = zstart(2),zend(2)
+            call ThomasBatchedPeriodic(zsize(1),nzm,ldz,amkl,ackl,apkl,shkl,rhz(zstart(1),jc,1),twk1(1),twk2(1))
         end do
 
     else
 
-        do ic = zstart(1),zend(1)
-            do jc = zstart(2),zend(2)
-
-                do kc = 1,nzm
-                    ackl_b   =  1.0/(1.0 - ac3ck(kc)*betadx)
-                    amkl(kc) = -am3ck(kc)*betadx*ackl_b
-                    ackl(kc) =  1.0
-                    apkl(kc) = -ap3ck(kc)*betadx*ackl_b
-                    rz1d(kc) =  rhz(ic,jc,kc)*ackl_b
-                end do
-
-                ! Lower boundary
-                ackl(1) = ackl(1) + cfbczs(ic,jc,bcid)*amkl(1)
-
-                ! Upper boundary
-                ackl(nzm) = ackl(nzm) + cfbcze(ic,jc,bcid)*apkl(nzm)
-
-                ! Solve
-                call dgttrf(nzm,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,info)
-                call dgttrs('N',nzm,1,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,rz1d,nzm,info)
-
-                do kc = 1,nzm
-                    rhz(ic,jc,kc) = rz1d(kc)
-                end do
-
-            end do
+        ! All lines of a jc row per call, with the boundary conditions of
+        ! each line ic folded into its first and last main diagonal entry
+        do jc = zstart(2),zend(2)
+            dcks(:) = cfbczs(zstart(1):zend(1),jc,bcid)*amkl(1)
+            dcke(:) = cfbcze(zstart(1):zend(1),jc,bcid)*apkl(nzm)
+            call ThomasBatched(zsize(1),nzm,ldz,amkl,ackl,apkl,shkl,dcks,dcke,rhz(zstart(1),jc,1),twk1(1))
         end do
 
     end if
@@ -509,276 +365,170 @@ subroutine TridiagonalSolverZM(bcid)
 
 end subroutine TridiagonalSolverZM
 
-subroutine TridiagonalSolverZC(bcid)
+subroutine TridiagonalSolverZC(bcid,difc)
 
     use param
-    use decomp_2d, only: zstart,zend
+    use decomp_2d, only: zstart,zend,zsize
     use local_arrays, only: rhz
     use boundary_arrays, only: cfbczs,cfbcze
+    use tridiagonal_buffer
 
     implicit none
 
-    integer, intent(in) :: bcid
-    
-    real                :: amkl(nzm),apkl(nzm),ackl(nzm),appk(nzm)
-    real                :: rz1d(nzm)
-    real                :: uflz(nzm),vflz(nzm),qflz
-    integer             :: ipkv(nzm)
-    integer             :: ic,jc,kc,info
-    real                :: ackl_b
-    real                :: betadx,gvalue
-    
-    betadx = 0.5*al*dt/rey
-    
+    integer, intent(in) :: bcid     ! Boundary condition index
+    real, intent(in)    :: difc     ! Diffusion coefficient (1/Re or 1/(Re*Pr))
+
+    real                :: amkl(nzm),ackl(nzm),apkl(nzm)
+    real                :: shkl(zsize(1)),dcks(zsize(1)),dcke(zsize(1))
+    real                :: betadx
+    integer             :: jc,kc,ldz
+
+    betadx = 0.5*al*dt*difc
+
+    ! Coefficients of (1 - betadx*D2) along Z for a face-centred variable
+    do kc = 1,nzm
+        amkl(kc) = -am3sk(kc)*betadx
+        ackl(kc) =  1.0 - ac3sk(kc)*betadx
+        apkl(kc) = -ap3sk(kc)*betadx
+    end do
+
+    ! No diagonal shift for the momentum equations
+    shkl(:) = 0.0
+
+    ! All zsize(1) lines of a jc row per call: row kc of line ic is
+    ! rhz(ic,jc,kc), so lines are contiguous and rows are ldz apart
+    ldz     = zsize(1)*zsize(2)
+
     if (periodic(3)) then
 
-        do ic = zstart(1),zend(1)
-            do jc = zstart(2),zend(2)
-
-                do kc = 1,nzm
-                    ackl_b   =  1.0/(1.0 - ac3sk(kc)*betadx)
-                    amkl(kc) = -am3sk(kc)*betadx*ackl_b
-                    ackl(kc) =  1.0
-                    apkl(kc) = -ap3sk(kc)*betadx*ackl_b
-                    rz1d(kc) =  rhz(ic,jc,kc)*ackl_b
-                    uflz(kc) =  0.0
-                    vflz(kc) =  0.0
-                end do
-
-                gvalue    = (amkl(1)*apkl(nzm))**0.5
-
-                ackl(1)   = ackl(1)   - gvalue
-                ackl(nzm) = ackl(nzm) - ((amkl(1)*apkl(nzm))/gvalue)
-
-                uflz(1)   = gvalue
-                uflz(nzm) = apkl(nzm)
-
-                vflz(1)   = 1.0
-                vflz(nzm) = amkl(1)/gvalue
-
-                call dgttrf(nzm,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,info)
-                call dgttrs('N',nzm,1,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,rz1d,nzm,info)
-                call dgttrs('N',nzm,1,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,uflz,nzm,info)
-
-                qflz = (vflz(1)*rz1d(1) + vflz(nzm)*rz1d(nzm))/(1.0 + (vflz(1)*uflz(1) + vflz(nzm)*uflz(nzm)))
-
-                do kc = 1,nzm                
-                    rhz(ic,jc,kc) = rz1d(kc) - (qflz*uflz(kc))
-                enddo
-
-            end do
+        do jc = zstart(2),zend(2)
+            call ThomasBatchedPeriodic(zsize(1),nzm,ldz,amkl,ackl,apkl,shkl,rhz(zstart(1),jc,1),twk1(1),twk2(1))
         end do
 
     else
 
-        do ic = zstart(1),zend(1)
-            do jc = zstart(2),zend(2)
-
-                do kc = 2,nzm
-                    ackl_b   =  1.0/(1.0 - ac3sk(kc)*betadx)
-                    amkl(kc) = -am3sk(kc)*betadx*ackl_b
-                    ackl(kc) =  1.0
-                    apkl(kc) = -ap3sk(kc)*betadx*ackl_b
-                    rz1d(kc) =  rhz(ic,jc,kc)*ackl_b
-                end do
-
-                ! Lower boundary
-                ackl(2) = ackl(2) + cfbczs(ic,jc,bcid)*amkl(2)
-
-                ! Upper boundary
-                ackl(nzm) = ackl(nzm) + cfbcze(ic,jc,bcid)*apkl(nzm)
-
-                ! Solve
-
-                call dgttrf(nzm-1,amkl(3:nzm),ackl(2:nzm),apkl(2:nzm-1),appk(2:nzm-2),ipkv,info)
-                call dgttrs('N',nzm-1,1,amkl(3:nzm),ackl(2:nzm),apkl(2:nzm-1),appk(2:nzm-2),ipkv,rz1d(2:nzm),nzm-1,info)
-
-                do kc = 2,nzm
-                    rhz(ic,jc,kc) = rz1d(kc)
-                end do
-
-                rhz(ic,jc,1) = 0.0
-
-            end do
+        ! Face kc = 1 lies on the boundary and is not solved for: its value is
+        ! imposed by the boundary routines, so its increment is zero. Rows 2:nzm
+        ! are solved by passing all arrays from their 2nd element on, and the
+        ! boundary condition is folded into row 2 through amkl(2).
+        do jc = zstart(2),zend(2)
+            dcks(:) = cfbczs(zstart(1):zend(1),jc,bcid)*amkl(2)
+            dcke(:) = cfbcze(zstart(1):zend(1),jc,bcid)*apkl(nzm)
+            call ThomasBatched(zsize(1),nzm-1,ldz,amkl(2),ackl(2),apkl(2),shkl,dcks,dcke,rhz(zstart(1),jc,2),twk1(1))
+            rhz(zstart(1):zend(1),jc,1) = 0.0
         end do
 
     end if
-    
+
     return
 
 end subroutine TridiagonalSolverZC
 
 !--------------- FOR PRESSURE POISSON EQUATION  ---------------!
+!                                                              !
+! Before these routines are called, the right-hand side has    !
+! been transformed to the eigenvector basis of the discrete    !
+! second derivative in the two other directions (see           !
+! MultiplyEigenvectorsBW_* in SolvePressureCorrection.F90).    !
+! Each line then satisfies a 1D Helmholtz equation along the   !
+! remaining direction:                                         !
+!                                                              !
+!   (D2 + eig_a + eig_b) p = rhs                               !
+!                                                              !
+! where D2 has the stencil coefficients amph*/acph*/apph* and  !
+! eig_a + eig_b is the sum of the eigenvalues of the two other !
+! directions belonging to this line (diagonal shift sh).       !
+!                                                              !
+! Boundary conditions (cell-centred, ghost cell p(0)):         !
+!   NEUMANN   : p(0) =  p(1)  ->  dcs = +amph(1)               !
+!   DIRICHLET : p(0) = -p(1)  ->  dcs = -amph(1)               !
+! and likewise at the end of the line with apph(n) (dce).      !
+!                                                              !
+! If all directions are periodic or Neumann-Neumann, the line  !
+! carrying the zero eigenvalue of the other two directions is  !
+! singular (pressure is defined up to a constant). That line   !
+! is solved with one value pinned to zero (izmx/izmy/izmz).    !
+! Because the right-hand side is compatible (the global        !
+! divergence is corrected beforehand), the dropped equation is !
+! satisfied automatically and the solution is exact:           !
+!   non-periodic : last value pinned, rows 1:n-1 solved        !
+!   periodic     : first value pinned, rows 2:n solved (both   !
+!                  periodic couplings multiply the first value !
+!                  and vanish, leaving an ordinary system)     !
+!                                                              !
+!--------------------------------------------------------------!
 
-subroutine TridiagonalSolverXP(norm,dcmp)
+subroutine TridiagonalSolverXR
 
     use param
-    use decomp_2d
-    use fftw_params, only : cx1
+    use decomp_2d, only: xstart,xend
+    use local_arrays, only: rhx
+    use boundary_arrays, only: DIRICHLET,NEUMANN
+    use pressure_solver, only: eigy,eigz,pcbcxs,pcbcxe,izmx,izmy,izmz
+    use tridiagonal_buffer
 
     implicit none
 
-    integer, intent(in)             :: norm
-    type(decomp_info), intent(in)   :: dcmp
+    real                :: shil(1),dcis(1),dcie(1),dzro(1)
+    real                :: prst,pren
+    integer             :: jc,kc
+    logical             :: zmod
 
-    complex                         :: amil(nxm),apil(nxm),acil(nxm),appi(nxm)
-    complex                         :: rx1d(nxm)
-    complex                         :: uflx(nxm),vflx(nxm),qflx
-    integer                         :: ipiv(nxm)
-    integer                         :: ic,jc,kc,info
-    complex                         :: acil_b,gvalue
+    dzro(1) = 0.0
 
     if (periodic(1)) then
 
-        do kc = dcmp%xst(3),dcmp%xen(3)
-            do jc = dcmp%xst(2),dcmp%xen(2)
+        ! One line per call: rhx(1:nxm,jc,kc) is contiguous (nl = 1, ld = 1)
+        do kc = xstart(3),xend(3)
+            do jc = xstart(2),xend(2)
 
-                do ic = 1,nxm
-                    acil_b   = 1.0/(acphi(ic) - ak2(jc) - ak3(kc))
-                    amil(ic) = amphi(ic)*acil_b
-                    acil(ic) = 1.0
-                    apil(ic) = apphi(ic)*acil_b
-                    rx1d(ic) = cx1(ic,jc,kc)*acil_b/real(norm)
-                    uflx(ic) = 0.0
-                    vflx(ic) = 0.0
-                end do
+                ! Shift: eigenvalues of the transformed Y and Z directions
+                shil(1) = eigy(jc) + eigz(kc)
+                ! Singular line: zero mode in Y and Z, and X itself has a zero mode
+                zmod    = (izmx.gt.0).and.(jc.eq.izmy).and.(kc.eq.izmz)
 
-                gvalue    = (amil(1)*apil(nxm))**0.5
+                if (zmod) then
+                    ! Singular line: pin ic = 1 to zero and solve rows 2:nxm
+                    ! (the periodic couplings multiply rhx(1) and drop out)
+                    call ThomasBatched(1,nxm-1,1,amphi(2),acphi(2),apphi(2),shil,dzro,dzro,rhx(2,jc,kc),twk1(1))
+                    rhx(1,jc,kc) = 0.0
+                else
+                    call ThomasBatchedPeriodic(1,nxm,1,amphi,acphi,apphi,shil,rhx(1,jc,kc),twk1(1),twk2(1))
+                end if
 
-                acil(1)   = acil(1)   - gvalue
-                acil(nxm) = acil(nxm) - amil(1)*apil(nxm)/gvalue
-
-                uflx(1)   = gvalue
-                uflx(nxm) = apil(nxm)
-
-                vflx(1)   = 1.0
-                vflx(nxm) = amil(1)/gvalue
-
-                call zgttrf(nxm,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,info)
-                call zgttrs('N',nxm,1,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,rx1d,nxm,info)
-                call zgttrs('N',nxm,1,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,uflx,nxm,info)
-
-                qflx = (vflx(1)*rx1d(1) + vflx(nxm)*rx1d(nxm))/(1.0 + (vflx(1)*uflx(1) + vflx(nxm)*uflx(nxm)))
-
-                do ic = 1,nxm               
-                    cx1(ic,jc,kc) = rx1d(ic) - (qflx*uflx(ic))
-                enddo
-
-            end do 
-        end do
-
-    else
-
-        do kc = dcmp%xst(3),dcmp%xen(3)
-            do jc = dcmp%xst(2),dcmp%xen(2)
-
-                do ic = 1,nxm
-                    acil_b   = 1.0/(acphi(ic) - ak2(jc) - ak3(kc))
-                    amil(ic) = amphi(ic)*acil_b
-                    acil(ic) = 1.0
-                    apil(ic) = apphi(ic)*acil_b
-                    rx1d(ic) = cx1(ic,jc,kc)*acil_b/real(norm)
-                end do
-
-                acil(1)   = acil(1)   + amil(1)
-                acil(nxm) = acil(nxm) + apil(nxm)
-
-                call zgttrf(nxm,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,info)
-                call zgttrs('N',nxm,1,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,rx1d,nxm,info)
-
-                do ic = 1,nxm
-                    cx1(ic,jc,kc) = rx1d(ic)
-                end do
-
-            end do
-        end do
-
-    end if
-
-    return
-
-end subroutine TridiagonalSolverXP
-
-subroutine TridiagonalSolverXR(norm,dcmp)
-
-    use param
-    use decomp_2d
-    use fftw_params, only : rx1
-
-    implicit none
-
-    type(decomp_info), intent(in)   :: dcmp
-    integer, intent(in)             :: norm
-
-    real                            :: amil(nxm),apil(nxm),acil(nxm),appi(nxm)
-    real                            :: rx1d(nxm)
-    real                            :: uflx(nxm),vflx(nxm),qflx
-    integer                         :: ipiv(nxm)
-    integer                         :: ic,jc,kc,info
-    real                            :: gvalue,acil_b
-
-    if (periodic(1)) then
-
-        do kc = dcmp%xst(3),dcmp%xen(3)
-            do jc = dcmp%xst(2),dcmp%xen(2)
-
-                do ic = 1,nxm
-                    acil_b   = 1.0/(acphi(ic) - ak2(jc) - ak3(kc))
-                    amil(ic) = amphi(ic)*acil_b
-                    acil(ic) = 1.0
-                    apil(ic) = apphi(ic)*acil_b
-                    rx1d(ic) = rx1(ic,jc,kc)*acil_b/real(norm)
-                    uflx(ic) = 0.0
-                    vflx(ic) = 0.0
-                end do
-
-                gvalue    = (amil(1)*apil(nxm))**0.5
-
-                acil(1)   = acil(1)   - gvalue
-                acil(nxm) = acil(nxm) - amil(1)*apil(nxm)/gvalue
-
-                uflx(1)   = gvalue
-                uflx(nxm) = apil(nxm)
-
-                vflx(1)   = 1.0
-                vflx(nxm) = amil(1)/gvalue
-
-                call dgttrf(nxm,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,info)
-                call dgttrs('N',nxm,1,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,rx1d,nxm,info)
-                call dgttrs('N',nxm,1,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,uflx,nxm,info)
-
-                qflx = (vflx(1)*rx1d(1) + vflx(nxm)*rx1d(nxm))/(1.0 + (vflx(1)*uflx(1) + vflx(nxm)*uflx(nxm)))
-
-                do ic = 1,nxm               
-                    rx1(ic,jc,kc) = rx1d(ic) - (qflx*uflx(ic))
-                enddo
-            
             end do
         end do
 
     else
 
-        do kc = dcmp%xst(3),dcmp%xen(3)
-            do jc = dcmp%xst(2),dcmp%xen(2)
+        ! Ghost cell factor: +1 for Neumann (p(0) = p(1)), -1 for Dirichlet (p(0) = -p(1))
+        if (pcbcxs.eq.DIRICHLET) prst = -1.0
+        if (pcbcxs.eq.NEUMANN)   prst =  1.0
+        if (pcbcxe.eq.DIRICHLET) pren = -1.0
+        if (pcbcxe.eq.NEUMANN)   pren =  1.0
 
-                do ic = 1,nxm
-                    acil_b   = 1.0/(acphi(ic) - ak2(jc) - ak3(kc))
-                    amil(ic) = amphi(ic)*acil_b
-                    acil(ic) = 1.0
-                    apil(ic) = apphi(ic)*acil_b
-                    rx1d(ic) = rx1(ic,jc,kc)*acil_b/real(norm)
-                end do
+        ! Boundary corrections are the same for every line
+        dcis(1) = prst*amphi(1)
+        dcie(1) = pren*apphi(nxm)
 
-                acil(1)   = acil(1)   + amil(1)
-                acil(nxm) = acil(nxm) + apil(nxm)
+        ! One line per call: rhx(1:nxm,jc,kc) is contiguous (nl = 1, ld = 1)
+        do kc = xstart(3),xend(3)
+            do jc = xstart(2),xend(2)
 
-                call dgttrf(nxm,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,info)
-                call dgttrs('N',nxm,1,amil(2:nxm),acil(1:nxm),apil(1:nxm-1),appi(1:nxm-2),ipiv,rx1d,nxm,info)
+                ! Shift: eigenvalues of the transformed Y and Z directions
+                shil(1) = eigy(jc) + eigz(kc)
+                ! Singular line: zero mode in Y and Z, and X itself has a zero mode
+                zmod    = (izmx.gt.0).and.(jc.eq.izmy).and.(kc.eq.izmz)
 
-                do ic = 1,nxm
-                    rx1(ic,jc,kc) = rx1d(ic)
-                end do
-                
+                if (zmod) then
+                    ! Singular line: pin ic = nxm to zero and solve rows 1:nxm-1
+                    ! (no end boundary term, the coupling to rhx(nxm) drops out)
+                    call ThomasBatched(1,nxm-1,1,amphi,acphi,apphi,shil,dcis,dzro,rhx(1,jc,kc),twk1(1))
+                    rhx(nxm,jc,kc) = 0.0
+                else
+                    call ThomasBatched(1,nxm,1,amphi,acphi,apphi,shil,dcis,dcie,rhx(1,jc,kc),twk1(1))
+                end if
+
             end do
         end do
 
@@ -788,358 +538,314 @@ subroutine TridiagonalSolverXR(norm,dcmp)
 
 end subroutine TridiagonalSolverXR
 
-subroutine TridiagonalSolverYP(norm,dcmp)
+subroutine TridiagonalSolverYR
 
     use param
-    use decomp_2d
-    use fftw_params, only : cy1
+    use decomp_2d, only: ystart,yend,ysize
+    use local_arrays, only: rhy
+    use boundary_arrays, only: DIRICHLET,NEUMANN
+    use pressure_solver, only: eigx,eigz,pcbcys,pcbcye,izmx,izmy,izmz
+    use tridiagonal_buffer
 
     implicit none
 
-    type(decomp_info), intent(in)   :: dcmp
-    integer, intent(in)             :: norm
+    real                :: shjl(ysize(1)),dcjs(ysize(1)),dcje(ysize(1)),dzro(1)
+    real                :: rsav(nym)
+    real                :: prst,pren
+    integer             :: ic,kc,lz
+    logical             :: zmod
 
-    complex                         :: amjl(nym),apjl(nym),acjl(nym),appj(nym)
-    complex                         :: ry1d(nym)
-    complex                         :: ufly(nym),vfly(nym),qfly
-    integer                         :: ipjv(nym)
-    integer                         :: ic,jc,kc,info
-    complex                         :: acjl_b,gvalue
+    dzro(1) = 0.0
+    lz      = izmx - ystart(1) + 1      ! Local line index of the zero mode in X
 
-    if (periodic(2)) then
-
-        do kc = dcmp%yst(3),dcmp%yen(3)
-            do ic = dcmp%yst(1),dcmp%yen(1)
-
-                do jc = 1,nym
-                    acjl_b   = 1.0/(acphj(jc) - ak1(ic) - ak3(kc))
-                    amjl(jc) = amphj(jc)*acjl_b
-                    acjl(jc) = 1.0
-                    apjl(jc) = apphj(jc)*acjl_b
-                    ry1d(jc) = cy1(ic,jc,kc)*acjl_b/real(norm)
-                    ufly(jc) = 0.0
-                    vfly(jc) = 0.0
-                end do
-
-                gvalue    = (amjl(1)*apjl(nym))**0.5
-
-                acjl(1)   =  acjl(1)   - gvalue
-                acjl(nym) =  acjl(nym) - amjl(1)*apjl(nym)/gvalue
-
-                ufly(1)   = gvalue
-                ufly(nym) = apjl(nym)
-
-                vfly(1)   = 1.0
-                vfly(nym) = amjl(1)/gvalue
-
-                call zgttrf(nym,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,info)
-                call zgttrs('N',nym,1,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,ry1d,nym,info)
-                call zgttrs('N',nym,1,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,ufly,nym,info)
-
-                qfly = (vfly(1)*ry1d(1) + vfly(nym)*ry1d(nym))/(1.0 + (vfly(1)*ufly(1) + vfly(nym)*ufly(nym)))
-
-                do jc = 1,nym 
-                    cy1(ic,jc,kc) = ry1d(jc) - (qfly*ufly(jc))
-                enddo
-
-            end do
-        end do
-
-    else
-
-        do kc = dcmp%yst(3),dcmp%yen(3)
-            do ic = dcmp%yst(1),dcmp%yen(1)
-
-                do jc = 1,nym
-                    acjl_b   = 1.0/(acphj(jc) - ak1(ic) - ak3(kc))
-                    amjl(jc) = amphj(jc)*acjl_b
-                    acjl(jc) = 1.0
-                    apjl(jc) = apphj(jc)*acjl_b
-                    ry1d(jc) = cy1(ic,jc,kc)*acjl_b/real(norm)
-                end do
-
-                acjl(1)   = acjl(1)   + amjl(1)
-                acjl(nym) = acjl(nym) + apjl(nym)
-
-                call zgttrf(nym,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,info)
-                call zgttrs('N',nym,1,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,ry1d,nym,info)
-
-                do jc = 1,nym
-                    cy1(ic,jc,kc) = ry1d(jc)
-                end do
-
-            end do
-        end do
-
+    if (.not.periodic(2)) then
+        ! Ghost cell factor: +1 for Neumann (p(0) = p(1)), -1 for Dirichlet (p(0) = -p(1))
+        if (pcbcys.eq.DIRICHLET) prst = -1.0
+        if (pcbcys.eq.NEUMANN)   prst =  1.0
+        if (pcbcye.eq.DIRICHLET) pren = -1.0
+        if (pcbcye.eq.NEUMANN)   pren =  1.0
+        ! Boundary corrections are the same for every line
+        dcjs(:) = prst*amphj(1)
+        dcje(:) = pren*apphj(nym)
     end if
 
-    return
+    do kc = ystart(3),yend(3)
 
-end subroutine TridiagonalSolverYP
-
-subroutine TridiagonalSolverYR(norm,dcmp)
-
-    use param
-    use decomp_2d
-    use fftw_params, only : ry1
-
-    implicit none
-
-    type(decomp_info), intent(in)   :: dcmp
-    integer, intent(in)             :: norm
-
-    real                            :: amjl(nym),apjl(nym),acjl(nym),appj(nym)
-    real                            :: ry1d(nym)
-    real                            :: ufly(nym),vfly(nym),qfly
-    integer                         :: ipjv(nym)
-    integer                         :: ic,jc,kc,info
-    real                            :: acjl_b,gvalue
-
-    if (periodic(2)) then
-
-        do kc = dcmp%yst(3),dcmp%yen(3)
-            do ic = dcmp%yst(1),dcmp%yen(1)
-
-                do jc = 1,nym
-                    acjl_b   = 1.0/(acphj(jc) - ak1(ic) - ak3(kc))
-                    amjl(jc) = amphj(jc)*acjl_b
-                    acjl(jc) = 1.0
-                    apjl(jc) = apphj(jc)*acjl_b
-                    ry1d(jc) = ry1(ic,jc,kc)*acjl_b/real(norm)
-                    ufly(jc) = 0.0
-                    vfly(jc) = 0.0
-                end do
-
-                gvalue    = (amjl(1)*apjl(nym))**0.5
-
-                acjl(1)   =  acjl(1)   - gvalue
-                acjl(nym) =  acjl(nym) - amjl(1)*apjl(nym)/gvalue
-
-                ufly(1)   = gvalue
-                ufly(nym) = apjl(nym)
-
-                vfly(1)   = 1.0
-                vfly(nym) = amjl(1)/gvalue
-
-                call dgttrf(nym,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,info)
-                call dgttrs('N',nym,1,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,ry1d,nym,info)
-                call dgttrs('N',nym,1,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,ufly,nym,info)
-
-                qfly = (vfly(1)*ry1d(1) + vfly(nym)*ry1d(nym))/(1.0 + (vfly(1)*ufly(1) + vfly(nym)*ufly(nym)))
-                if (qfly.eq.qfly+1) print *, "INF QFLY at ", nrank, ic, kc, (1.0 + (vfly(1)*ufly(1) + vfly(nym)*ufly(nym))), vfly(1)*ufly(1), vfly(nym)*ufly(nym)
-
-                do jc = 1,nym
-                    ry1(ic,jc,kc) = ry1d(jc) - (qfly*ufly(jc))
-                enddo
-
-            end do
+        ! Shift of line ic: eigenvalues of the transformed X and Z directions
+        do ic = ystart(1),yend(1)
+            shjl(ic-ystart(1)+1) = eigx(ic) + eigz(kc)
         end do
 
-    else
+        ! The singular line ic = izmx is in this plane if kc = izmz and izmx is on this rank.
+        ! Save its right-hand side: the batched call below also processes it, but gives a
+        ! meaningless result for that (singular) line, which is overwritten afterwards.
+        zmod = (izmy.gt.0).and.(kc.eq.izmz).and.(izmx.ge.ystart(1)).and.(izmx.le.yend(1))
+        if (zmod) rsav(1:nym) = rhy(izmx,1:nym,kc)
 
-        do kc = dcmp%yst(3),dcmp%yen(3)
-            do ic = dcmp%yst(1),dcmp%yen(1)
+        ! All ysize(1) lines of this kc plane per call (rows are ysize(1) apart)
+        if (periodic(2)) then
+            call ThomasBatchedPeriodic(ysize(1),nym,ysize(1),amphj,acphj,apphj,shjl,rhy(ystart(1),1,kc),twk1(1),twk2(1))
+        else
+            call ThomasBatched(ysize(1),nym,ysize(1),amphj,acphj,apphj,shjl,dcjs,dcje,rhy(ystart(1),1,kc),twk1(1))
+        end if
 
-                do jc = 1,nym
-                    acjl_b   = 1.0/(acphj(jc) - ak1(ic) - ak3(kc))
-                    amjl(jc) = amphj(jc)*acjl_b
-                    acjl(jc) = 1.0
-                    apjl(jc) = apphj(jc)*acjl_b
-                    ry1d(jc) = ry1(ic,jc,kc)*acjl_b/real(norm)
-                end do
+        if (zmod) then
+            ! Singular line: restore its right-hand side and solve it with one value pinned to zero
+            ! (a single line, nl = 1, still with rows ysize(1) apart in memory)
+            rhy(izmx,1:nym,kc) = rsav(1:nym)
+            if (periodic(2)) then
+                ! Pin jc = 1, solve rows 2:nym without boundary terms
+                call ThomasBatched(1,nym-1,ysize(1),amphj(2),acphj(2),apphj(2),shjl(lz),dzro,dzro,rhy(izmx,2,kc),twk1(1))
+                rhy(izmx,1,kc) = 0.0
+            else
+                ! Pin jc = nym, solve rows 1:nym-1 with the start boundary term only
+                call ThomasBatched(1,nym-1,ysize(1),amphj,acphj,apphj,shjl(lz),dcjs(lz),dzro,rhy(izmx,1,kc),twk1(1))
+                rhy(izmx,nym,kc) = 0.0
+            end if
+        end if
 
-                acjl(1)   = acjl(1)   + amjl(1)
-                acjl(nym) = acjl(nym) + apjl(nym)
-
-                call dgttrf(nym,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,info)
-                call dgttrs('N',nym,1,amjl(2:nym),acjl(1:nym),apjl(1:nym-1),appj(1:nym-2),ipjv,ry1d,nym,info)
-
-                do jc = 1,nym
-                    ry1(ic,jc,kc) = ry1d(jc)
-                end do
-
-            end do
-        end do
-
-    end if
+    end do
 
     return
 
 end subroutine TridiagonalSolverYR
 
-subroutine TridiagonalSolverZP(norm,dcmp)
+subroutine TridiagonalSolverZR
 
     use param
-    use decomp_2d
-    use fftw_params, only : cz1
+    use decomp_2d, only: zstart,zend,zsize
+    use local_arrays, only: rhz
+    use boundary_arrays, only: DIRICHLET,NEUMANN
+    use pressure_solver, only: eigx,eigy,pcbczs,pcbcze,izmx,izmy,izmz
+    use tridiagonal_buffer
 
     implicit none
 
-    type(decomp_info), intent(in)   :: dcmp
-    integer, intent(in)             :: norm
-    
-    complex                         :: amkl(nzm),apkl(nzm),ackl(nzm),appk(nzm)
-    complex                         :: rz1d(nzm)
-    complex                         :: uflz(nzm),vflz(nzm),qflz
-    integer                         :: ipkv(nzm)
-    integer                         :: ic,jc,kc,info
-    complex                         :: ackl_b,gvalue
+    real                :: shkl(zsize(1)),dcks(zsize(1)),dcke(zsize(1)),dzro(1)
+    real                :: rsav(nzm)
+    real                :: prst,pren
+    integer             :: ic,jc,lz,ldz
+    logical             :: zmod
 
-    if (periodic(3)) then
+    dzro(1) = 0.0
+    lz      = izmx - zstart(1) + 1      ! Local line index of the zero mode in X
+    ldz     = zsize(1)*zsize(2)
 
-        do ic = dcmp%zst(1),dcmp%zen(1)
-            do jc = dcmp%zst(2),dcmp%zen(2)
-
-                do kc = 1,nzm
-                    ackl_b   = 1.0/(acphk(kc) - ak2(jc) - ak1(ic))
-                    amkl(kc) = amphk(kc)*ackl_b
-                    ackl(kc) = 1.0
-                    apkl(kc) = apphk(kc)*ackl_b
-                    rz1d(kc) = cz1(ic,jc,kc)*ackl_b/real(norm)
-                    uflz(kc) = 0.0
-                    vflz(kc) = 0.0
-                end do
-
-                gvalue    = (amkl(1)*apkl(nzm))**0.5
-
-                ackl(1)   =  ackl(1)   - gvalue
-                ackl(nzm) =  ackl(nzm) - amkl(1)*apkl(nzm)/gvalue
-
-                uflz(1)   = gvalue
-                uflz(nzm) = apkl(nzm)
-
-                vflz(1)   = 1.0
-                vflz(nzm) = amkl(1)/gvalue
-
-                call zgttrf(nzm,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,info)
-                call zgttrs('N',nzm,1,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,rz1d,nzm,info)
-                call zgttrs('N',nzm,1,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,uflz,nzm,info)
-
-                qflz = (vflz(1)*rz1d(1) + vflz(nzm)*rz1d(nzm))/(1.0 + (vflz(1)*uflz(1) + vflz(nzm)*uflz(nzm)))
-
-                do kc = 1,nzm                
-                    cz1(ic,jc,kc) = rz1d(kc) - (qflz*uflz(kc))
-                enddo
-
-            end do
-        end do
-
-    else
-
-        do ic = dcmp%zst(1),dcmp%zen(1)
-            do jc = dcmp%zst(2),dcmp%zen(2)
-
-                do kc = 1,nzm
-                    ackl_b   = 1.0/(acphk(kc) - ak2(jc) - ak1(ic))
-                    amkl(kc) = amphk(kc)*ackl_b
-                    ackl(kc) = 1.0
-                    apkl(kc) = apphk(kc)*ackl_b
-                    rz1d(kc) = cz1(ic,jc,kc)*ackl_b/real(norm)
-                end do
-
-                ackl(1)   = ackl(1)   + amkl(1)
-                ackl(nzm) = ackl(nzm) + apkl(nzm)
-
-                call zgttrf(nzm,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,info)
-                call zgttrs('N',nzm,1,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,rz1d,nzm,info)
-
-                do kc = 1,nzm
-                    cz1(ic,jc,kc) = rz1d(kc)
-                end do
-
-            end do
-        end do
-
+    if (.not.periodic(3)) then
+        ! Ghost cell factor: +1 for Neumann (p(0) = p(1)), -1 for Dirichlet (p(0) = -p(1))
+        if (pcbczs.eq.DIRICHLET) prst = -1.0
+        if (pcbczs.eq.NEUMANN)   prst =  1.0
+        if (pcbcze.eq.DIRICHLET) pren = -1.0
+        if (pcbcze.eq.NEUMANN)   pren =  1.0
+        ! Boundary corrections are the same for every line
+        dcks(:) = prst*amphk(1)
+        dcke(:) = pren*apphk(nzm)
     end if
 
-    return
+    do jc = zstart(2),zend(2)
 
-end subroutine TridiagonalSolverZP
-
-subroutine TridiagonalSolverZR(norm,dcmp)
-
-    use param
-    use decomp_2d
-    use fftw_params, only : rz1
-
-    implicit none
-
-    type(decomp_info), intent(in)   :: dcmp
-    integer, intent(in)             :: norm
-    
-    real                            :: amkl(nzm),apkl(nzm),ackl(nzm),appk(nzm)
-    real                            :: rz1d(nzm)
-    real                            :: uflz(nzm),vflz(nzm),qflz
-    integer                         :: ipkv(nzm)
-    integer                         :: ic,jc,kc,info
-    real                            :: ackl_b,gvalue
-    if (periodic(3)) then
-
-        do ic = dcmp%zst(1),dcmp%zen(1)
-            do jc = dcmp%zst(2),dcmp%zen(2)
-
-                do kc = 1,nzm
-                    ackl_b   = 1.0/(acphk(kc) - ak2(jc) - ak1(ic))
-                    amkl(kc) = amphk(kc)*ackl_b
-                    ackl(kc) = 1.0
-                    apkl(kc) = apphk(kc)*ackl_b
-                    rz1d(kc) = rz1(ic,jc,kc)*ackl_b/real(norm)
-                    uflz(kc) = 0.0
-                    vflz(kc) = 0.0
-                end do
-
-                gvalue    = (amkl(1)*apkl(nzm))**0.5
-
-                ackl(1)   =  ackl(1)   - gvalue
-                ackl(nzm) =  ackl(nzm) - amkl(1)*apkl(nzm)/gvalue
-
-                uflz(1)   = gvalue
-                uflz(nzm) = apkl(nzm)
-
-                vflz(1)   = 1.0
-                vflz(nzm) = amkl(1)/gvalue
-
-                call dgttrf(nzm,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,info)
-                call dgttrs('N',nzm,1,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,rz1d,nzm,info)
-                call dgttrs('N',nzm,1,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,uflz,nzm,info)
-
-                qflz = (vflz(1)*rz1d(1) + vflz(nzm)*rz1d(nzm))/(1.0 + (vflz(1)*uflz(1) + vflz(nzm)*uflz(nzm)))
-
-                do kc = 1,nzm                
-                    rz1(ic,jc,kc) = rz1d(kc) - (qflz*uflz(kc))
-                enddo
-
-            end do
+        ! Shift of line ic: eigenvalues of the transformed X and Y directions
+        do ic = zstart(1),zend(1)
+            shkl(ic-zstart(1)+1) = eigx(ic) + eigy(jc)
         end do
 
-    else
+        ! The singular line ic = izmx is in this row if jc = izmy and izmx is on this rank.
+        ! Save its right-hand side: the batched call below also processes it, but gives a
+        ! meaningless result for that (singular) line, which is overwritten afterwards.
+        zmod = (izmz.gt.0).and.(jc.eq.izmy).and.(izmx.ge.zstart(1)).and.(izmx.le.zend(1))
+        if (zmod) rsav(1:nzm) = rhz(izmx,jc,1:nzm)
 
-        do ic = dcmp%zst(1),dcmp%zen(1)
-            do jc = dcmp%zst(2),dcmp%zen(2)
+        ! All zsize(1) lines of this jc row per call (rows are ldz apart)
+        if (periodic(3)) then
+            call ThomasBatchedPeriodic(zsize(1),nzm,ldz,amphk,acphk,apphk,shkl,rhz(zstart(1),jc,1),twk1(1),twk2(1))
+        else
+            call ThomasBatched(zsize(1),nzm,ldz,amphk,acphk,apphk,shkl,dcks,dcke,rhz(zstart(1),jc,1),twk1(1))
+        end if
 
-                do kc = 1,nzm
-                    ackl_b   = 1.0/(acphk(kc) - ak2(jc) - ak1(ic))
-                    amkl(kc) = amphk(kc)*ackl_b
-                    ackl(kc) = 1.0
-                    apkl(kc) = apphk(kc)*ackl_b
-                    rz1d(kc) = rz1(ic,jc,kc)*ackl_b/real(norm)
-                end do
+        if (zmod) then
+            ! Singular line: restore its right-hand side and solve it with one value pinned to zero
+            ! (a single line, nl = 1, still with rows ldz apart in memory)
+            rhz(izmx,jc,1:nzm) = rsav(1:nzm)
+            if (periodic(3)) then
+                ! Pin kc = 1, solve rows 2:nzm without boundary terms
+                call ThomasBatched(1,nzm-1,ldz,amphk(2),acphk(2),apphk(2),shkl(lz),dzro,dzro,rhz(izmx,jc,2),twk1(1))
+                rhz(izmx,jc,1) = 0.0
+            else
+                ! Pin kc = nzm, solve rows 1:nzm-1 with the start boundary term only
+                call ThomasBatched(1,nzm-1,ldz,amphk,acphk,apphk,shkl(lz),dcks(lz),dzro,rhz(izmx,jc,1),twk1(1))
+                rhz(izmx,jc,nzm) = 0.0
+            end if
+        end if
 
-                ackl(1)   = ackl(1)   + amkl(1)
-                ackl(nzm) = ackl(nzm) + apkl(nzm)
-
-                call dgttrf(nzm,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,info)
-                call dgttrs('N',nzm,1,amkl(2:nzm),ackl(1:nzm),apkl(1:nzm-1),appk(1:nzm-2),ipkv,rz1d,nzm,info)
-
-                do kc = 1,nzm
-                    rz1(ic,jc,kc) = rz1d(kc)
-                end do
-
-            end do
-        end do
-
-    end if
+    end do
 
     return
 
 end subroutine TridiagonalSolverZR
+
+!------------------ BATCHED THOMAS ALGORITHM ------------------!
+!                                                              !
+! Solves nl independent tridiagonal systems of ng rows each.   !
+! Row k of line l is stored at rr(l,k), rows are ld apart in   !
+! memory. All lines share the off-diagonals am(k), ap(k). The  !
+! main diagonal of line l is ac(k) + sh(l), with dcs(l) added  !
+! to the first row and dce(l) added to the last row:           !
+!                                                              !
+!   am(k)*x(k-1) + (ac(k)+sh(l))*x(k) + ap(k)*x(k+1) = rr(l,k) !
+!                                                              !
+! No pivoting: the systems must be diagonally dominant, which  !
+! holds for all momentum and pressure Helmholtz equations.     !
+! ib(nl,ng) is a work buffer for the inverse pivots.           !
+!                                                              !
+!--------------------------------------------------------------!
+
+subroutine ThomasBatched(nl,ng,ld,am,ac,ap,sh,dcs,dce,rr,ib)
+
+    implicit none
+
+    integer, intent(in) :: nl,ng,ld                 ! Number of lines, rows per line, memory distance between rows
+    real, intent(in)    :: am(ng),ac(ng),ap(ng)     ! Sub-, main and super-diagonal, shared by all lines
+    real, intent(in)    :: sh(nl),dcs(nl),dce(nl)   ! Per line: diagonal shift, first/last row correction
+    real, intent(inout) :: rr(ld,*)                 ! In: right-hand side, out: solution (row k of line l at rr(l,k))
+    real, intent(out)   :: ib(nl,ng)                ! Work buffer: inverse of the pivots
+
+    integer             :: l,k
+    real                :: w                        ! Elimination multiplier
+
+    ! Single row (e.g. a face-centred solve with only 2 cells, or a pinned zero-mode
+    ! line with 2 rows): both boundary corrections act on the same diagonal entry
+    if (ng.eq.1) then
+        do l = 1,nl
+            rr(l,1) = rr(l,1)/(ac(1) + sh(l) + dcs(l) + dce(l))
+        end do
+        return
+    end if
+
+    ! Forward elimination: row k-1 times w = am(k)/pivot(k-1) is subtracted from
+    ! row k, which removes the sub-diagonal entry am(k). The new pivot of row k is
+    ! diag(k) - w*ap(k-1). The inverse pivots are stored in ib, so the backward
+    ! substitution needs only multiplications. In all loops below, the line index
+    ! l is innermost: the lines are independent and contiguous in memory, so the
+    ! compiler vectorises over them.
+
+    ! First row, including the start boundary correction
+    do l = 1,nl
+        ib(l,1) = 1.0/(ac(1) + sh(l) + dcs(l))
+    end do
+
+    ! Interior rows
+    do k = 2,ng-1
+        do l = 1,nl
+            w       = am(k)*ib(l,k-1)
+            ib(l,k) = 1.0/(ac(k) + sh(l) - w*ap(k-1))
+            rr(l,k) = rr(l,k) - w*rr(l,k-1)
+        end do
+    end do
+
+    ! Last row, including the end boundary correction. Dividing by its pivot
+    ! already gives the solution in the last row.
+    do l = 1,nl
+        w        = am(ng)*ib(l,ng-1)
+        ib(l,ng) = 1.0/(ac(ng) + sh(l) + dce(l) - w*ap(ng-1))
+        rr(l,ng) = (rr(l,ng) - w*rr(l,ng-1))*ib(l,ng)
+    end do
+
+    ! Backward substitution: x(k) = (rhs(k) - ap(k)*x(k+1))/pivot(k)
+    do k = ng-1,1,-1
+        do l = 1,nl
+            rr(l,k) = (rr(l,k) - ap(k)*rr(l,k+1))*ib(l,k)
+        end do
+    end do
+
+    return
+
+end subroutine ThomasBatched
+
+!-------------- BATCHED PERIODIC THOMAS ALGORITHM -------------!
+!                                                              !
+! Same as ThomasBatched, but the systems are periodic: row 1   !
+! couples to x(ng) through am(1) and row ng couples to x(1)    !
+! through ap(ng). The corners are written as a rank-one        !
+! update u*v^T of a tridiagonal matrix and removed with the    !
+! Sherman-Morrison formula:                                    !
+!                                                              !
+!   u = (gm, 0, ..., 0, ap(ng)),  v = (1, 0, ..., 0, am(1)/gm) !
+!                                                              !
+! with gm = -(ac(1)+sh(l)). Both the right-hand side and u are !
+! eliminated in the same sweep. zz(nl,ng) is a work buffer     !
+! for u. Requires ng >= 3.                                     !
+!                                                              !
+!--------------------------------------------------------------!
+
+subroutine ThomasBatchedPeriodic(nl,ng,ld,am,ac,ap,sh,rr,ib,zz)
+
+    implicit none
+
+    integer, intent(in) :: nl,ng,ld                 ! Number of lines, rows per line, memory distance between rows
+    real, intent(in)    :: am(ng),ac(ng),ap(ng)     ! Sub-, main and super-diagonal, shared by all lines
+    real, intent(in)    :: sh(nl)                   ! Per line: diagonal shift
+    real, intent(inout) :: rr(ld,*)                 ! In: right-hand side, out: solution (row k of line l at rr(l,k))
+    real, intent(out)   :: ib(nl,ng),zz(nl,ng)      ! Work buffers: inverse pivots, and z = T^-1 u
+
+    integer             :: l,k
+    real                :: w,vn                     ! Elimination multiplier, last entry of v
+    real                :: gm(nl),qf(nl)            ! Per line: gm (see above), Sherman-Morrison factor
+
+    ! The periodic matrix A is split as A = T + u*v^T, where T is tridiagonal
+    ! (A with its first and last diagonal entries modified and the corners
+    ! removed). With y = T^-1 rhs and z = T^-1 u, the solution is
+    !
+    !   x = y - (v.y)/(1 + v.z) * z
+    !
+    ! y and z are computed together in one forward/backward sweep over T.
+
+    ! First row: T(1,1) = A(1,1) - u(1)*v(1) = A(1,1) - gm, and u(1) = gm
+    do l = 1,nl
+        gm(l)   = -(ac(1) + sh(l))
+        ib(l,1) = 1.0/(ac(1) + sh(l) - gm(l))
+        zz(l,1) = gm(l)
+    end do
+
+    ! Interior rows: u is zero here, only the fill-in from row 1 propagates into z
+    do k = 2,ng-1
+        do l = 1,nl
+            w       = am(k)*ib(l,k-1)
+            ib(l,k) = 1.0/(ac(k) + sh(l) - w*ap(k-1))
+            rr(l,k) = rr(l,k) - w*rr(l,k-1)
+            zz(l,k) = -w*zz(l,k-1)
+        end do
+    end do
+
+    ! Last row: T(ng,ng) = A(ng,ng) - u(ng)*v(ng) = A(ng,ng) - ap(ng)*am(1)/gm,
+    ! and u(ng) = ap(ng)
+    do l = 1,nl
+        w        = am(ng)*ib(l,ng-1)
+        ib(l,ng) = 1.0/(ac(ng) + sh(l) - ap(ng)*am(1)/gm(l) - w*ap(ng-1))
+        rr(l,ng) = (rr(l,ng) - w*rr(l,ng-1))*ib(l,ng)
+        zz(l,ng) = (ap(ng)   - w*zz(l,ng-1))*ib(l,ng)
+    end do
+
+    ! Backward substitution, for y (in rr) and z (in zz)
+    do k = ng-1,1,-1
+        do l = 1,nl
+            rr(l,k) = (rr(l,k) - ap(k)*rr(l,k+1))*ib(l,k)
+            zz(l,k) = (zz(l,k) - ap(k)*zz(l,k+1))*ib(l,k)
+        end do
+    end do
+
+    ! Sherman-Morrison factor (v.y)/(1 + v.z), with v = (1, 0, ..., 0, am(1)/gm)
+    do l = 1,nl
+        vn    = am(1)/gm(l)
+        qf(l) = (rr(l,1) + vn*rr(l,ng))/(1.0 + zz(l,1) + vn*zz(l,ng))
+    end do
+
+    ! Correction x = y - qf*z
+    do k = 1,ng
+        do l = 1,nl
+            rr(l,k) = rr(l,k) - qf(l)*zz(l,k)
+        end do
+    end do
+
+    return
+
+end subroutine ThomasBatchedPeriodic

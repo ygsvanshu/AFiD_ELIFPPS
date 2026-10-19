@@ -42,7 +42,7 @@ subroutine QuitRoutine(tin,normalexit,errorcode)
 
         if (particle) call FinalizeParticleSolver
         call DeallocateVariables
-        call DeallocateFFTArrays
+        call FinalizePressureSolver
         call HdfClose
         call decomp_2d_finalize
 

@@ -82,7 +82,7 @@ subroutine CreateStretchedGrid3(nc,gc,ln,sv)
 end subroutine CreateStretchedGrid3
 
 ! TO READ IN GRID FROM INPUT FILE
-subroutine ReadStretchedGrid(nc,gc,ln)
+subroutine ReadStretchedGrid(nc,gc,ln,ax)
 
     use param
 
@@ -94,11 +94,12 @@ subroutine ReadStretchedGrid(nc,gc,ln)
     integer             :: lc
     logical             :: exists
     real                :: strorg,strscl
+    character           :: ax
 
-    inquire (file='Inputs/sgrid.in', exist=exists)
+    inquire (file='Inputs/s'//ax//'grid.in', exist=exists)
     if (exists) then
-        if (ismaster) write (6,*) 'Reading grid from sgrid.in'
-        open (unit=78, file='Inputs/sgrid.in', status='old')
+        if (ismaster) write (6,*) 'Reading grid from s'//ax//'grid.in'
+        open (unit=78, file='Inputs/s'//ax//'grid.in', status='old')
         do lc = 1,nc
             read (78,*) gc(lc)
         end do
@@ -109,7 +110,7 @@ subroutine ReadStretchedGrid(nc,gc,ln)
         end do
         close (78)
     else
-        if (ismaster) write (6,*) 'Warning: Inputs/sgrid.in not found!'
+        if (ismaster) write (6,*) 'Warning: Inputs/s'//ax//'grid.in not found!'
         call MpiAbort
     end if
 
@@ -144,7 +145,7 @@ subroutine CreateGrid
     else if (gtpx.eq.3) then
         call CreateStretchedGrid3(nx,xc,xlen,gvlx)
     else
-        call ReadStretchedGrid(nx,xc,xlen)
+        call ReadStretchedGrid(nx,xc,xlen,'x')
     end if
 
     do i = 1,nxm
@@ -215,7 +216,7 @@ subroutine CreateGrid
     else if (gtpy.eq.3) then
         call CreateStretchedGrid3(ny,yc,ylen,gvly)
     else
-        call ReadStretchedGrid(ny,yc,ylen)
+        call ReadStretchedGrid(ny,yc,ylen,'y')
     end if
         
     do j = 1,nym
@@ -286,7 +287,7 @@ subroutine CreateGrid
     else if (gtpz.eq.3) then
         call CreateStretchedGrid3(nz,zc,zlen,gvlz)
     else
-        call ReadStretchedGrid(nz,zc,zlen)
+        call ReadStretchedGrid(nz,zc,zlen,'z')
     end if
 
     do k = 1,nzm

@@ -62,6 +62,7 @@ program AFiD
     call InitTimeMarchScheme
     call InitVariables
     call CreateGrid
+    call CalcGridMetrics
     call InitPressureSolver
     call ChooseBestPressureSolver(.true.)
     if (save1d) call InitProfiles

@@ -275,11 +275,6 @@ subroutine ReadSolverInputs
             call scan_string(line,1,ss,narg)
             read (ss(1),*) rey
 
-        else if (line(1:3) == '502') then
-            !###### PRANDTL NUMBER ######
-            call scan_string(line,1,ss,narg)
-            read (ss(1),*) pra
-
         else if (line(1:3) == '601') then
             !###### OUTPUT INTERVAL ######
             call scan_string(line,1,ss,narg)

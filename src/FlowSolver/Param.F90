@@ -49,7 +49,6 @@ module param
     integer         :: itpr = 10                                    ! Pressure solver speed test iterations
     ! 5XX -----------------------
     real            :: rey                                          ! Reynolds number
-    real            :: pra                                          ! Prandtl number
     ! 6XX -----------------------
     integer         :: nout                                         ! Output interval
     real            :: csav                                         ! Time interval for saving checkpoint data (continua.h5)

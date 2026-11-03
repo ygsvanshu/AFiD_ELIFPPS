@@ -24,6 +24,7 @@ FFLAGS += -O3
 # FFLAGS += -Og 
 # FFLAGS += -g
 # FFLAGS += -fbacktrace
+# FFLAGS += -fcheck=all
 # FFLAGS += -Warray-bounds
 # FFLAGS += -Wall
 

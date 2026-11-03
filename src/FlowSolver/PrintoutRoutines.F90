@@ -101,7 +101,6 @@ subroutine PrintCaseInfo
         write (6,'(A77)') '**** PHYSICAL PARAMETERS =============================================== ****'
         write (6,'(A77)') '                                                                             '
         write (6,'(A40,F10.3)') '     Reynolds Number                  = ',rey
-        write (6,'(A40,F10.3)') '     Prandtl Number                   = ',pra
         write (6,'(A77)') '                                                                             '
         write (6,'(A77)') '**** TIME-STEPPING ===================================================== ****'
         write (6,'(A77)') '                                                                             '

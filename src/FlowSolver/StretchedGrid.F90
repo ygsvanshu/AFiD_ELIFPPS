@@ -98,10 +98,10 @@ subroutine ReadStretchedGrid(nc,gc,ln,ax)
     real                :: strorg,strscl
     character           :: ax
 
-    inquire (file='Inputs/s'//ax//'grid.in', exist=exists)
+    inquire (file='Inputs/'//ax//'grid.in', exist=exists)
     if (exists) then
-        if (ismaster) write (6,*) 'Reading grid from s'//ax//'grid.in'
-        open (unit=78, file='Inputs/s'//ax//'grid.in', status='old')
+        if (ismaster) write (6,*) 'Reading grid from Inputs/'//ax//'grid.in'
+        open (unit=78, file='Inputs/'//ax//'grid.in', status='old')
         do lc = 1,nc
             read (78,*) gc(lc)
         end do
@@ -112,7 +112,7 @@ subroutine ReadStretchedGrid(nc,gc,ln,ax)
         end do
         close (78)
     else
-        if (ismaster) write (6,*) 'Warning: Inputs/s'//ax//'grid.in not found!'
+        if (ismaster) write (6,*) 'Warning: Inputs/'//ax//'grid.in not found!'
         call MpiAbort
     end if
 

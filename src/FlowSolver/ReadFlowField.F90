@@ -20,6 +20,9 @@ subroutine ReadFlowField
 
     character*200     :: filename,dsetname
     integer           :: nxo,nyo,nzo
+    real              :: tolerance = 1.0e-10
+    real, allocatable :: xco(:), yco(:), zco(:)
+    real, allocatable :: dxo(:), dyo(:), dzo(:)
     integer           :: st1,en1,st2,en2,st3,en3
     logical           :: exists
     
@@ -40,106 +43,152 @@ subroutine ReadFlowField
         call HdfSerialReadIntScalar(filename,dsetname,nzo)
         dsetname = trim('/time')
         call HdfSerialReadRealScalar(filename,dsetname,time)
-    endif
-        
+    end if
+    ! Broadcast the grid dimensions and time to all processes
     call MpiBarrier
     call MpiBcastInt(nxo)
     call MpiBcastInt(nyo)
     call MpiBcastInt(nzo)
     call MpiBcastReal(time)
-    
-    !EP   Check whether grid specifications have been updated
-    if((nxo.ne.nxm).or.(nyo.ne.nym).or.(nzo.ne.nzm)) then
 
+    ! Allocate old coordinate and spacing arrays
+    if (.not.allocated(xco)) allocate(xco(nxo+1))
+    if (.not.allocated(yco)) allocate(yco(nyo+1))
+    if (.not.allocated(zco)) allocate(zco(nzo+1))
+    if (.not.allocated(dxo)) allocate(dxo(nxo))
+    if (.not.allocated(dyo)) allocate(dyo(nyo))
+    if (.not.allocated(dzo)) allocate(dzo(nzo))
+
+    ! Read in the coordinate and spacing arrays
+    if (ismaster) then
+        dsetname = trim('/xc')
+        call HdfSerialReadReal1D(filename,dsetname,xco,1,nxo+1)
+        dsetname = trim('/yc')
+        call HdfSerialReadReal1D(filename,dsetname,yco,1,nyo+1)
+        dsetname = trim('/zc')
+        call HdfSerialReadReal1D(filename,dsetname,zco,1,nzo+1)
+    end if
+    ! Broadcast the coordinate and spacing arrays to all processes
+    call MpiBarrier
+    call MPI_BCAST(xco,nxo+1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpi_ierr)
+    call MPI_BCAST(yco,nyo+1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpi_ierr)
+    call MPI_BCAST(zco,nzo+1,MPI_DOUBLE_PRECISION,0,MPI_COMM_WORLD,mpi_ierr)
+
+    ! Compute old grid spacing
+    dxo = xco(2:nxo+1) - xco(1:nxo)
+    dyo = yco(2:nyo+1) - yco(1:nyo)
+    dzo = zco(2:nzo+1) - zco(1:nzo)
+
+    ! Check grid spacings are consistent
+    if (maxval(abs(dxo - dxc)) > tolerance) then
+        if(ismaster) write(*,*) '!! X grid spacing inconsistent with previous simulation !!'
+        call MpiAbort
+    end if
+    if (maxval(abs(dyo - dyc)) > tolerance) then
+        if(ismaster) write(*,*) '!! Y grid spacing inconsistent with previous simulation !!'
+        call MpiAbort
+    end if
+    if (maxval(abs(dzo - dzc)) > tolerance) then
+        if(ismaster) write(*,*) '!! Z grid spacing inconsistent with previous simulation !!'
+        call MpiAbort
+    end if
+    
+    ! Check whether grid specifications have been updated
+    if((nxo.ne.nxm).or.(nyo.ne.nym).or.(nzo.ne.nzm)) then
         if(ismaster) write(*,*) "!! Interpolation not supported at this time !!"
         call MpiAbort
+    end if
 
-    else
+    ! Deallocate old coordinate and spacing arrays
+    if (allocated(xco)) deallocate(xco)
+    if (allocated(yco)) deallocate(yco)
+    if (allocated(zco)) deallocate(zco)
+    if (allocated(dxo)) deallocate(dxo)
+    if (allocated(dyo)) deallocate(dyo)
+    if (allocated(dzo)) deallocate(dzo)
 
-        !--------------------------------- X-VELOCITY ---------------------------------!
+    !--------------------------------- X-VELOCITY ---------------------------------!
 
-        dsetname = trim('/vx')
+    dsetname = trim('/vx')
 
-        st1 = 1
-        en1 = nx
+    st1 = 1
+    en1 = nx
 
-        st2 = xstart(2)
-        en2 = xend(2)
+    st2 = xstart(2)
+    en2 = xend(2)
 
-        if (xstart(2).eq.1) st2 = 0
-        if (xend(2).eq.nym) en2 = ny
+    if (xstart(2).eq.1) st2 = 0
+    if (xend(2).eq.nym) en2 = ny
 
-        st3 = xstart(3)
-        en3 = xend(3)
+    st3 = xstart(3)
+    en3 = xend(3)
 
-        if (xstart(3).eq.1) st3 = 0
-        if (xend(3).eq.nzm) en3 = nz
-        
-        call HdfParallelReadReal3D(filename,dsetname,vx(st1:en1,st2:en2,st3:en3),st1,en1,st2,en2,st3,en3,1,nx,0,ny,0,nz,mpi_comm)
+    if (xstart(3).eq.1) st3 = 0
+    if (xend(3).eq.nzm) en3 = nz
+    
+    call HdfParallelReadReal3D(filename,dsetname,vx(st1:en1,st2:en2,st3:en3),st1,en1,st2,en2,st3,en3,1,nx,0,ny,0,nz,mpi_comm)
 
-        !--------------------------------- Y-VELOCITY ---------------------------------!
+    !--------------------------------- Y-VELOCITY ---------------------------------!
 
-        dsetname = trim('/vy')
+    dsetname = trim('/vy')
 
-        st1 = 0
-        en1 = nx
+    st1 = 0
+    en1 = nx
 
-        st2 = xstart(2)
-        en2 = xend(2)
+    st2 = xstart(2)
+    en2 = xend(2)
 
-        if (xend(2).eq.nym) en2 = ny
+    if (xend(2).eq.nym) en2 = ny
 
-        st3 = xstart(3)
-        en3 = xend(3)
+    st3 = xstart(3)
+    en3 = xend(3)
 
-        if (xstart(3).eq.1) st3 = 0
-        if (xend(3).eq.nzm) en3 = nz
+    if (xstart(3).eq.1) st3 = 0
+    if (xend(3).eq.nzm) en3 = nz
 
-        call HdfParallelReadReal3D(filename,dsetname,vy(st1:en1,st2:en2,st3:en3),st1,en1,st2,en2,st3,en3,0,nx,1,ny,0,nz,mpi_comm)
+    call HdfParallelReadReal3D(filename,dsetname,vy(st1:en1,st2:en2,st3:en3),st1,en1,st2,en2,st3,en3,0,nx,1,ny,0,nz,mpi_comm)
 
-        !--------------------------------- Z-VELOCITY ---------------------------------!
+    !--------------------------------- Z-VELOCITY ---------------------------------!
 
-        dsetname = trim('/vz')
+    dsetname = trim('/vz')
 
-        st1 = 0
-        en1 = nx
+    st1 = 0
+    en1 = nx
 
-        st2 = xstart(2)
-        en2 = xend(2)
+    st2 = xstart(2)
+    en2 = xend(2)
 
-        if (xstart(2).eq.1) st2 = 0
-        if (xend(2).eq.nym) en2 = ny
+    if (xstart(2).eq.1) st2 = 0
+    if (xend(2).eq.nym) en2 = ny
 
-        st3 = xstart(3)
-        en3 = xend(3)
+    st3 = xstart(3)
+    en3 = xend(3)
 
-        if (xend(3).eq.nzm) en3 = nz
+    if (xend(3).eq.nzm) en3 = nz
 
-        call HdfParallelReadReal3D(filename,dsetname,vz(st1:en1,st2:en2,st3:en3),st1,en1,st2,en2,st3,en3,0,nx,0,ny,1,nz,mpi_comm)
+    call HdfParallelReadReal3D(filename,dsetname,vz(st1:en1,st2:en2,st3:en3),st1,en1,st2,en2,st3,en3,0,nx,0,ny,1,nz,mpi_comm)
 
-        !---------------------------------- PRESSURE ----------------------------------!
+    !---------------------------------- PRESSURE ----------------------------------!
 
-        dsetname = trim('/pr')
+    dsetname = trim('/pr')
 
-        st1 = 0
-        en1 = nx
+    st1 = 0
+    en1 = nx
 
-        st2 = xstart(2)
-        en2 = xend(2)
+    st2 = xstart(2)
+    en2 = xend(2)
 
-        if (xstart(2).eq.1) st2 = 0
-        if (xend(2).eq.nym) en2 = ny
+    if (xstart(2).eq.1) st2 = 0
+    if (xend(2).eq.nym) en2 = ny
 
-        st3 = xstart(3)
-        en3 = xend(3)
+    st3 = xstart(3)
+    en3 = xend(3)
 
-        if (xstart(3).eq.1) st3 = 0
-        if (xend(3).eq.nzm) en3 = nz
+    if (xstart(3).eq.1) st3 = 0
+    if (xend(3).eq.nzm) en3 = nz
 
-        call HdfParallelReadReal3D(filename,dsetname,pr(st1:en1,st2:en2,st3:en3),st1,en1,st2,en2,st3,en3,0,nx,0,ny,0,nz,mpi_comm)
-        
-    endif
-  
+    call HdfParallelReadReal3D(filename,dsetname,pr(st1:en1,st2:en2,st3:en3),st1,en1,st2,en2,st3,en3,0,nx,0,ny,0,nz,mpi_comm)
+    
     return
   
 end subroutine ReadFlowField

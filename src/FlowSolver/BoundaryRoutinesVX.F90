@@ -79,13 +79,9 @@ subroutine CalcBoundaryConditionVX
                 call VxBcXs(jc,kc,btypxs(jc,kc,1), bvalxs(jc,kc,1))
                 !!! Store this value needed for imposing B.C.s later
                 if (btypxs(jc,kc,1).eq.SOMMERFELD) bvalxs(jc,kc,1) = bvalxs(jc,kc,1)*al*dt/dxc(1  )
-                !!! Store magnitude of global flux correction allowed
-                call GlFlXs(jc,kc,glpcxs(jc,kc))
                 call VxBcXe(jc,kc,btypxe(jc,kc,1), bvalxe(jc,kc,1))
                 !!! Store this value needed for imposing B.C.s later
                 if (btypxe(jc,kc,1).eq.SOMMERFELD) bvalxe(jc,kc,1) = bvalxe(jc,kc,1)*al*dt/dxc(nxm)
-                !!! Store magnitude of global flux correction allowed
-                call GlFlXe(jc,kc,glpcxe(jc,kc))
             end do
         end do
     end if
@@ -130,6 +126,16 @@ subroutine CalcBoundaryConditionVX
                 end do
             end do
         end if
+    end if
+
+    ! Store flux correction magnitudes
+    if (.not.periodic(1)) then
+        do kc = xstart(3),xend(3)
+            do jc = xstart(2),xend(2)
+                call GlFlXs(jc,kc,glpcxs(jc,kc))
+                call GlFlXe(jc,kc,glpcxe(jc,kc))
+            end do
+        end do
     end if
 
 end subroutine CalcBoundaryConditionVX

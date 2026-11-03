@@ -114,8 +114,6 @@ subroutine CalcBoundaryConditionVZ
                     call VzBcZs(ic,jc,btypzs(ic,jc,3), bvalzs(ic,jc,3))
                     !!! Store this value needed for imposing B.C.s later
                     if (btypzs(ic,jc,3).eq.SOMMERFELD) bvalzs(ic,jc,3) = bvalzs(ic,jc,3)*al*dt/dzc(1  )
-                    !!! Store magnitude of global flux correction allowed
-                    call GlFlZs(ic,jc,glpczs(ic,jc))
                 end do
             end do
         end if
@@ -125,7 +123,23 @@ subroutine CalcBoundaryConditionVZ
                     call VzBcZe(ic,jc,btypze(ic,jc,3), bvalze(ic,jc,3))
                     !!! Store this value needed for imposing B.C.s later
                     if (btypze(ic,jc,3).eq.SOMMERFELD) bvalze(ic,jc,3) = bvalze(ic,jc,3)*al*dt/dzc(nzm)
-                    !!! Store magnitude of global flux correction allowed
+                end do
+            end do
+        end if
+    end if
+
+    ! Store flux correction magnitudes
+    if (.not.periodic(3)) then
+        if (xstart(3).eq.1) then
+            do jc = xstart(2),xend(2)
+                do ic = xstart(1),xend(1)
+                    call GlFlZs(ic,jc,glpczs(ic,jc))
+                end do
+            end do
+        end if
+        if (xend(3).eq.nzm) then
+            do jc = xstart(2),xend(2)
+                do ic = xstart(1),xend(1)
                     call GlFlZe(ic,jc,glpcze(ic,jc))
                 end do
             end do

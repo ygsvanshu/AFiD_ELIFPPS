@@ -162,6 +162,7 @@ program AFiD
             if ((pex_save).and.(time.ge.pex_ssta).and.((int(time/pex_sfrq)).gt.(int((time-dt)/pex_sfrq)))) call WriteExitedParticles
         end if
 
+        cwrite = .false.
         if (ismaster.and.((int(ti(2)/csav)).gt.(int(ti(1)/csav)))) cwrite = .true.
         call MPI_BCAST(cwrite,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpi_ierr)
         if (cwrite) then

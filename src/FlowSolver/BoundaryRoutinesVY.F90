@@ -93,8 +93,6 @@ subroutine CalcBoundaryConditionVY
                     call VyBcYs(ic,kc,btypys(ic,kc,2), bvalys(ic,kc,2))
                     !!! Store this value needed for imposing B.C.s later
                     if (btypys(ic,kc,2).eq.SOMMERFELD) bvalys(ic,kc,2) = bvalys(ic,kc,2)*al*dt/dyc(1  )
-                    !!! Store magnitude of global flux correction allowed
-                    call GlFlYs(ic,kc,glpcys(ic,kc))
                 end do
             end do
         end if
@@ -104,8 +102,6 @@ subroutine CalcBoundaryConditionVY
                     call VyBcYe(ic,kc,btypye(ic,kc,2), bvalye(ic,kc,2))
                     !!! Store this value needed for imposing B.C.s later
                     if (btypye(ic,kc,2).eq.SOMMERFELD) bvalye(ic,kc,2) = bvalye(ic,kc,2)*al*dt/dyc(nym)
-                    !!! Store magnitude of global flux correction allowed
-                    call GlFlYe(ic,kc,glpcye(ic,kc))
                 end do
             end do
         end if
@@ -127,6 +123,24 @@ subroutine CalcBoundaryConditionVY
                     call VyBcZe(ic,jc,btypze(ic,jc,2), bvalze(ic,jc,2))
                     !!! Store this value needed for imposing B.C.s later
                     if (btypze(ic,jc,2).eq.SOMMERFELD) bvalze(ic,jc,2) = bvalze(ic,jc,2)*al*dt/dzm(nz )
+                end do
+            end do
+        end if
+    end if
+
+    ! Store flux correction magnitudes
+    if (.not.periodic(2)) then
+        if (xstart(2).eq.1) then
+            do kc = xstart(3),xend(3)
+                do ic = xstart(1),xend(1)
+                    call GlFlYs(ic,kc,glpcys(ic,kc))
+                end do
+            end do
+        end if
+        if (xend(2).eq.nym) then
+            do kc = xstart(3),xend(3)
+                do ic = xstart(1),xend(1)
+                    call GlFlYe(ic,kc,glpcye(ic,kc))
                 end do
             end do
         end if

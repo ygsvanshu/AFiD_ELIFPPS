@@ -17,13 +17,14 @@ subroutine InitParticleSolver
 
     implicit none
 
+    integer                                                     :: mpi_dtyp
     integer                                                     :: hdf_error
     integer                                                     :: bcnt,bnum
     integer, allocatable, dimension(:)                          :: blen,btyp
     integer(KIND=MPI_ADDRESS_KIND)                              :: bref,bext,bblb
     integer(KIND=MPI_ADDRESS_KIND), allocatable, dimension(:)   :: bdsp
-    type(particle_data)                                         :: tlpp
-    type(particle_exit)                                         :: tepp
+    type(particle_data)                                         :: tlpp(2)
+    type(particle_exit)                                         :: tepp(2)
     character*200                                               :: filename
 
     ! Check lvlhalo is at least 1
@@ -52,22 +53,25 @@ subroutine InitParticleSolver
     blen(10) = 3
     blen(11) = 3
     !! Get block addresses from the test particle
-    call MPI_GET_ADDRESS(tlpp%src_idx,bdsp( 1),mpi_ierr)
-    call MPI_GET_ADDRESS(tlpp%grc_idx,bdsp( 2),mpi_ierr) 
-    call MPI_GET_ADDRESS(tlpp%grm_idx,bdsp( 3),mpi_ierr) 
-    call MPI_GET_ADDRESS(tlpp%lpp_lft,bdsp( 4),mpi_ierr)
-    call MPI_GET_ADDRESS(tlpp%lpp_dia,bdsp( 5),mpi_ierr)
-    call MPI_GET_ADDRESS(tlpp%lpp_den,bdsp( 6),mpi_ierr)
-    call MPI_GET_ADDRESS(tlpp%lpp_rey,bdsp( 7),mpi_ierr) 
-    call MPI_GET_ADDRESS(tlpp%lpp_pos,bdsp( 8),mpi_ierr) 
-    call MPI_GET_ADDRESS(tlpp%lpp_vel,bdsp( 9),mpi_ierr) 
-    call MPI_GET_ADDRESS(tlpp%acc_old,bdsp(10),mpi_ierr) 
-    call MPI_GET_ADDRESS(tlpp%acc_now,bdsp(11),mpi_ierr)
+    call MPI_GET_ADDRESS(tlpp(1)%src_idx,bdsp( 1),mpi_ierr)
+    call MPI_GET_ADDRESS(tlpp(1)%grc_idx,bdsp( 2),mpi_ierr) 
+    call MPI_GET_ADDRESS(tlpp(1)%grm_idx,bdsp( 3),mpi_ierr) 
+    call MPI_GET_ADDRESS(tlpp(1)%lpp_lft,bdsp( 4),mpi_ierr)
+    call MPI_GET_ADDRESS(tlpp(1)%lpp_dia,bdsp( 5),mpi_ierr)
+    call MPI_GET_ADDRESS(tlpp(1)%lpp_den,bdsp( 6),mpi_ierr)
+    call MPI_GET_ADDRESS(tlpp(1)%lpp_rey,bdsp( 7),mpi_ierr) 
+    call MPI_GET_ADDRESS(tlpp(1)%lpp_pos,bdsp( 8),mpi_ierr) 
+    call MPI_GET_ADDRESS(tlpp(1)%lpp_vel,bdsp( 9),mpi_ierr) 
+    call MPI_GET_ADDRESS(tlpp(1)%acc_old,bdsp(10),mpi_ierr) 
+    call MPI_GET_ADDRESS(tlpp(1)%acc_now,bdsp(11),mpi_ierr)
     !! Get block displacements from block address reference
-    call MPI_GET_ADDRESS(tlpp,bref,mpi_ierr)
+    call MPI_GET_ADDRESS(tlpp(1),bref,mpi_ierr)
     do bnum = 1,bcnt
         bdsp(bnum) = bdsp(bnum) - bref
     end do
+    !! Get block lower bound from block address reference
+    call MPI_GET_ADDRESS(tlpp(2),bext,mpi_ierr)
+    bext = bext - bref
     !! Set block datatypes
     btyp( 1) = MPI_INTEGER
     btyp( 2) = MPI_INTEGER
@@ -80,9 +84,15 @@ subroutine InitParticleSolver
     btyp( 9) = MPI_DOUBLE_PRECISION
     btyp(10) = MPI_DOUBLE_PRECISION
     btyp(11) = MPI_DOUBLE_PRECISION
-    !! Create the MPI data structure and commit it
-    call MPI_TYPE_CREATE_STRUCT(bcnt,blen,bdsp,btyp,mpi_pdat,mpi_ierr)
-    call MPI_TYPE_COMMIT(mpi_pdat,mpi_ierr)
+    !! Create the temporary MPI data structure 
+    call MPI_TYPE_CREATE_STRUCT(bcnt,blen,bdsp,btyp,mpi_dtyp,mpi_ierr)
+    !! Get the lower bound of the datatype
+    bblb = 0
+    call MPI_TYPE_CREATE_RESIZED(mpi_dtyp,bblb,bext,mpi_pdat,mpi_ierr)
+    !! Commit the particle datatype
+    call MPI_TYPE_COMMIT(mpi_pdat, mpi_ierr)
+    !! Free the temporary datatype
+    call MPI_TYPE_FREE(mpi_dtyp, mpi_ierr)
     !! Deallocate arrays
     deallocate(blen)
     deallocate(bdsp)
@@ -103,17 +113,20 @@ subroutine InitParticleSolver
     blen( 5) = 3
     blen( 6) = 3
     !! Get block addresses from the test particle exit event
-    call MPI_GET_ADDRESS(tepp%src_idx,bdsp(1),mpi_ierr)
-    call MPI_GET_ADDRESS(tepp%pex_pln,bdsp(2),mpi_ierr) 
-    call MPI_GET_ADDRESS(tepp%pex_lft,bdsp(3),mpi_ierr) 
-    call MPI_GET_ADDRESS(tepp%pex_eft,bdsp(4),mpi_ierr)
-    call MPI_GET_ADDRESS(tepp%pex_pos,bdsp(5),mpi_ierr)
-    call MPI_GET_ADDRESS(tepp%pex_vel,bdsp(6),mpi_ierr)
+    call MPI_GET_ADDRESS(tepp(1)%src_idx,bdsp(1),mpi_ierr)
+    call MPI_GET_ADDRESS(tepp(1)%pex_pln,bdsp(2),mpi_ierr) 
+    call MPI_GET_ADDRESS(tepp(1)%pex_lft,bdsp(3),mpi_ierr) 
+    call MPI_GET_ADDRESS(tepp(1)%pex_eft,bdsp(4),mpi_ierr)
+    call MPI_GET_ADDRESS(tepp(1)%pex_pos,bdsp(5),mpi_ierr)
+    call MPI_GET_ADDRESS(tepp(1)%pex_vel,bdsp(6),mpi_ierr)
     !! Get block displacements from block address reference
-    call MPI_GET_ADDRESS(tepp,bref,mpi_ierr)
+    call MPI_GET_ADDRESS(tepp(1),bref,mpi_ierr)
     do bnum = 1,bcnt
         bdsp(bnum) = bdsp(bnum) - bref
     end do
+    !! Get block lower bound from block address reference
+    call MPI_GET_ADDRESS(tepp(2),bext,mpi_ierr)
+    bext = bext - bref
     !! Set block datatypes
     btyp(1) = MPI_INTEGER
     btyp(2) = MPI_CHARACTER
@@ -121,9 +134,15 @@ subroutine InitParticleSolver
     btyp(4) = MPI_DOUBLE_PRECISION
     btyp(5) = MPI_DOUBLE_PRECISION
     btyp(6) = MPI_DOUBLE_PRECISION
-    !! Create the MPI data structure and commit it
-    call MPI_TYPE_CREATE_STRUCT(bcnt,blen,bdsp,btyp,mpi_edat,mpi_ierr)
-    call MPI_TYPE_COMMIT(mpi_edat,mpi_ierr)
+    !! Create the temporary MPI data structure
+    call MPI_TYPE_CREATE_STRUCT(bcnt,blen,bdsp,btyp,mpi_dtyp,mpi_ierr)
+    !! Get the lower bound of the datatype
+    bblb = 0
+    call MPI_TYPE_CREATE_RESIZED(mpi_dtyp,bblb,bext,mpi_edat,mpi_ierr)
+    !! Commit the particle exit event datatype
+    call MPI_TYPE_COMMIT(mpi_edat, mpi_ierr)
+    !! Free the temporary datatype
+    call MPI_TYPE_FREE(mpi_dtyp, mpi_ierr)
     !! Deallocate arrays
     deallocate(blen)
     deallocate(bdsp)

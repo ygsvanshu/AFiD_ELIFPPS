@@ -80,15 +80,15 @@ subroutine ReadFlowField
     dzo = zco(2:nzo+1) - zco(1:nzo)
 
     ! Check grid spacings are consistent
-    if (maxval(abs(dxo - dxc)) > tolerance) then
+    if (maxval(abs(dxo - dxc(1:nxo))) > tolerance) then
         if(ismaster) write(*,*) '!! X grid spacing inconsistent with previous simulation !!'
         call MpiAbort
     end if
-    if (maxval(abs(dyo - dyc)) > tolerance) then
+    if (maxval(abs(dyo - dyc(1:nyo))) > tolerance) then
         if(ismaster) write(*,*) '!! Y grid spacing inconsistent with previous simulation !!'
         call MpiAbort
     end if
-    if (maxval(abs(dzo - dzc)) > tolerance) then
+    if (maxval(abs(dzo - dzc(1:nzo))) > tolerance) then
         if(ismaster) write(*,*) '!! Z grid spacing inconsistent with previous simulation !!'
         call MpiAbort
     end if

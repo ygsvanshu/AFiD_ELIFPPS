@@ -5,7 +5,8 @@
 !                                                         ! 
 !    PURPOSE: Calculate the global divergence of velocity !
 !    in the domain and correct it by applying boundary    !
-!    fluxes.                                              !
+!    fluxes, such that it balances the net flux imposed   !
+!    by NEUMANN pressure correction boundary conditions.  !
 !                                                         !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -16,11 +17,12 @@ subroutine CorrectGlobalDivergence
     use param
     use local_arrays, only: vx,vy,vz
     use boundary_arrays, only: DIRICHLET, NEUMANN, glpcxs, glpcxe, glpcys, glpcye, glpczs, glpcze
+    use boundary_arrays, only: pcorxs, pcorxe, pcorys, pcorye, pcorzs, pcorze
     use pressure_solver, only: pcbcxs, pcbcxe, pcbcys, pcbcye, pcbczs, pcbcze
 
     implicit none
 
-    real                :: gdiv,gcar
+    real                :: gdiv,gcar,trgt
     integer             :: gcnt
     integer             :: kc,kp
     integer             :: jc,jp
@@ -41,6 +43,7 @@ subroutine CorrectGlobalDivergence
 
         gdiv = 0.0
         gcar = 0.0
+        trgt = 0.0
             
         do kc=xstart(3),xend(3)
             kp=kc+1
@@ -58,11 +61,17 @@ subroutine CorrectGlobalDivergence
         call MpiAllSumRealScalar(gdiv,res_dummy)
         gdiv = res_dummy
 
+        ! The target flux "trgt" is the net outflow that the pressure correction will
+        ! remove through faces with non-zero NEUMANN offsets (see BoundaryRoutinesPC),
+        ! which the global divergence of the intermediate velocity must balance.
+
         if (.not.periodic(1)) then
             do kc=xstart(3),xend(3)
                 do jc=xstart(2),xend(2)
                     gcar = gcar + dyc(jc)*dzc(kc)*glpcxs(jc,kc)
                     gcar = gcar + dyc(jc)*dzc(kc)*glpcxe(jc,kc)
+                    trgt = trgt + dyc(jc)*dzc(kc)*pcorxs(jc,kc)/dxm(1 )
+                    trgt = trgt + dyc(jc)*dzc(kc)*pcorxe(jc,kc)/dxm(nx)
                 enddo
             enddo
         end if
@@ -72,6 +81,7 @@ subroutine CorrectGlobalDivergence
                 do kc=xstart(3),xend(3)
                     do ic=xstart(1),xend(1)
                         gcar = gcar + dxc(ic)*dzc(kc)*glpcys(ic,kc)
+                        trgt = trgt + dxc(ic)*dzc(kc)*pcorys(ic,kc)/dym(1 )
                     enddo
                 enddo
             end if
@@ -79,6 +89,7 @@ subroutine CorrectGlobalDivergence
                 do kc=xstart(3),xend(3)
                     do ic=xstart(1),xend(1)
                         gcar = gcar + dxc(ic)*dzc(kc)*glpcye(ic,kc)
+                        trgt = trgt + dxc(ic)*dzc(kc)*pcorye(ic,kc)/dym(ny)
                     enddo
                 enddo
             endif
@@ -89,6 +100,7 @@ subroutine CorrectGlobalDivergence
                 do jc=xstart(2),xend(2)
                     do ic=xstart(1),xend(1)
                         gcar = gcar + dxc(ic)*dyc(jc)*glpczs(ic,jc)
+                        trgt = trgt + dxc(ic)*dyc(jc)*pcorzs(ic,jc)/dzm(1 )
                     enddo
                 enddo
             end if
@@ -96,6 +108,7 @@ subroutine CorrectGlobalDivergence
                 do jc=xstart(2),xend(2)
                     do ic=xstart(1),xend(1)
                         gcar = gcar + dxc(ic)*dyc(jc)*glpcze(ic,jc)
+                        trgt = trgt + dxc(ic)*dyc(jc)*pcorze(ic,jc)/dzm(nz)
                     enddo
                 enddo
             endif
@@ -104,8 +117,13 @@ subroutine CorrectGlobalDivergence
         call MpiAllSumRealScalar(gcar,res_dummy)
         gcar = res_dummy
 
+        call MpiAllSumRealScalar(trgt,res_dummy)
+        trgt = res_dummy*al*dt
+
+        gdiv = gdiv - trgt
+
         ! Check if the division blows up
-        if (abs(gcar).gt.(gdiv/limitVel)) then
+        if (abs(gcar).gt.(abs(gdiv)/limitVel)) then
 
             if (.not.periodic(1)) then
                 do kc=xstart(3),xend(3)
@@ -152,7 +170,7 @@ subroutine CorrectGlobalDivergence
 
         else
 
-            if (gdiv.gt.resid) then
+            if (abs(gdiv).gt.resid) then
                 if (ismaster) print *, 'Global divergence is non-zero'
                 if (ismaster) print *, 'Please check boundary conditions'
                 call MPI_ABORT(MPI_COMM_WORLD, 1, mpi_ierr)

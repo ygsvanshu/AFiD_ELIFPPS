@@ -5,7 +5,8 @@
 !                                                         ! 
 !    PURPOSE: Compute the divergence of the intermediate  !
 !     velocity at every point for the pressure            !
-!     correction step                                     !
+!     correction step, and add the boundary terms for the !
+!     pressure correction boundary conditions             !
 !                                                         !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -33,6 +34,8 @@ subroutine CalcLocalDivergence
             enddo
         enddo
     enddo
+
+    call AddBoundaryRHSTermsPC
 
     return
       

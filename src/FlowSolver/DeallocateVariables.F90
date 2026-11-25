@@ -148,6 +148,13 @@ subroutine DeallocateVariables
     if (xend(2).eq.nym) call DestroyReal2DArray(glpcye)
     if (xstart(3).eq.1) call DestroyReal2DArray(glpczs)
     if (xend(3).eq.nzm) call DestroyReal2DArray(glpcze)
+    ! Arrays to store pressure correction ghost value offsets
+    call DestroyReal2DArray(pcorxs)
+    call DestroyReal2DArray(pcorxe)
+    if (xstart(2).eq.1) call DestroyReal2DArray(pcorys)
+    if (xend(2).eq.nym) call DestroyReal2DArray(pcorye)
+    if (xstart(3).eq.1) call DestroyReal2DArray(pcorzs)
+    if (xend(3).eq.nzm) call DestroyReal2DArray(pcorze)
 
     !-------------------------------------------------
     ! Arrays for movie slices

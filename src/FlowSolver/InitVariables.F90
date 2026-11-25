@@ -153,6 +153,13 @@ subroutine InitVariables
     if (xstart(3).eq.1) call AllocateReal2DArray(glpczs,xstart(1),xend(1),xstart(2),xend(2))
     if (xend(3).eq.nzm) call AllocateReal2DArray(glpcze,xstart(1),xend(1),xstart(2),xend(2))
 
+    call AllocateReal2DArray(pcorxs,xstart(2),xend(2),xstart(3),xend(3))
+    call AllocateReal2DArray(pcorxe,xstart(2),xend(2),xstart(3),xend(3))
+    if (xstart(2).eq.1) call AllocateReal2DArray(pcorys,xstart(1),xend(1),xstart(3),xend(3))
+    if (xend(2).eq.nym) call AllocateReal2DArray(pcorye,xstart(1),xend(1),xstart(3),xend(3))
+    if (xstart(3).eq.1) call AllocateReal2DArray(pcorzs,xstart(1),xend(1),xstart(2),xend(2))
+    if (xend(3).eq.nzm) call AllocateReal2DArray(pcorze,xstart(1),xend(1),xstart(2),xend(2))
+
     !-------------------------------------------------
     ! Arrays for movie slices
     !-------------------------------------------------

@@ -149,6 +149,10 @@ module boundary_arrays
     real,allocatable,dimension(:,:)         :: glpcxs,glpcxe
     real,allocatable,dimension(:,:)         :: glpcys,glpcye
     real,allocatable,dimension(:,:)         :: glpczs,glpcze
+    ! Arrays to store pressure correction ghost value offsets
+    real,allocatable,dimension(:,:)         :: pcorxs,pcorxe
+    real,allocatable,dimension(:,:)         :: pcorys,pcorye
+    real,allocatable,dimension(:,:)         :: pcorzs,pcorze
 
 end module boundary_arrays
 
@@ -238,6 +242,7 @@ end module fftw_params
 module pressure_solver
 
     use fftw_params
+    use boundary_arrays, only: DIRICHLET, NEUMANN
 
     implicit none
 
@@ -256,9 +261,12 @@ module pressure_solver
     integer                             :: gszx, gszy, gszz ! Sizes of GEMM buffers in X, Y, Z directions
     real, allocatable, dimension(:)     :: gwrk             ! Real buffer for batched GEMM
 
-    integer                             :: pcbcxs, pcbcxe   ! Pressure correction boundary condition start/end in X
-    integer                             :: pcbcys, pcbcye   ! Pressure correction boundary condition start/end in Y
-    integer                             :: pcbczs, pcbcze   ! Pressure correction boundary condition start/end in Z
+    integer                             :: pcbcxs = NEUMANN ! Pressure correction boundary condition start in X
+    integer                             :: pcbcxe = NEUMANN ! Pressure correction boundary condition end in X
+    integer                             :: pcbcys = NEUMANN ! Pressure correction boundary condition start in Y
+    integer                             :: pcbcye = NEUMANN ! Pressure correction boundary condition end in Y
+    integer                             :: pcbczs = NEUMANN ! Pressure correction boundary condition start in Z
+    integer                             :: pcbcze = NEUMANN ! Pressure correction boundary condition end in Z
 
     integer                             :: izmx = 0         ! Zero-mode index for x direction (0 = none)
     integer                             :: izmy = 0         ! Zero-mode index for y direction (0 = none)

@@ -1,13 +1,16 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                              !
 !    FILE: BoundaryConditions.F90                              !
-!    CONTAINS: subroutines V(x/y/z)Bc(X/Y/Z)(s/e) and          !
-!              subroutines GlFl(X/Y/Z)(s/e)                    !
+!    CONTAINS: subroutines V(x/y/z)Bc(X/Y/Z)(s/e),             !
+!              subroutines GlFl(X/Y/Z)(s/e),                   !
+!              subroutine PrBcTp and                           !
+!              subroutines PrBc(X/Y/Z)(s/e)                    !
 !                                                              !
 !    PURPOSE: Sets the boundary conditions for each velocity   !
 !    component Vx, Vy, Vz in three directions X, Y, Z at the   !
-!    start (s) or end (e) of the axis, and the flux at the     !
-!    start (s) or end (e) of the axis.                         !
+!    start (s) or end (e) of the axis, the flux at the start   !
+!    (s) or end (e) of the axis, and the boundary conditions   !
+!    for the pressure correction.                              !
 !                                                              !
 !    All B.C. functions take two spatial coordinate indices as !
 !    inputs, to set boundary type "btyp" which can be          !
@@ -17,6 +20,19 @@
 !    All flux functions take two spatial coordinate indices as !
 !    inputs, to set the flux correction magnitude "gval" at    !
 !    the boundary.                                             !
+!                                                              !
+!    The pressure correction boundary type of each face is set !
+!    in "PrBcTp", and can be "DIRICHLET" or "NEUMANN"          !
+!    (default). It is uniform over each face. If any face is   !
+!    DIRICHLET, the global flux correction is not applied. All !
+!    pressure B.C. functions take two spatial coordinate       !
+!    indices as inputs, to set "pval", which is the pressure   !
+!    at the boundary for DIRICHLET faces, or the pressure      !
+!    gradient along the positive axis direction at the         !
+!    boundary for NEUMANN faces. For NEUMANN faces, a non-zero !
+!    "pval" changes the boundary-normal velocity in the        !
+!    pressure correction step, and the global flux correction  !
+!    accounts for the resulting net flux.                      !
 !                                                              !
 !    Additional information such as coordinates, grid spacing, !
 !    time, and time-step information can also be accessed in   !
@@ -30,6 +46,8 @@
 !    For Vx grid, the spacings are dxc(i), dym(j), dzm(k)      !
 !    For Vy grid, the spacings are dxm(i), dyc(j), dzm(k)      !
 !    For Vz grid, the spacings are dxm(i), dym(j), dzc(k)      !
+!    For pressure, the coordinates are xm(i), ym(j), zm(k)     !
+!    For pressure, the spacings are dxm(i), dym(j), dzm(k)     !
 !                                                              !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -394,3 +412,83 @@ subroutine GlFlZe(i,j,gval)
     gval = 1.0
 
 end subroutine GlFlZe
+
+!============= Pressure =============!
+
+subroutine PrBcTp(xs,xe,ys,ye,zs,ze)
+
+    use boundary_arrays, only: DIRICHLET, NEUMANN
+
+    implicit none
+
+    integer, intent(inout)  :: xs,xe,ys,ye,zs,ze
+
+    ! By default everything is set to NEUMANN, changes are made below if needed
+
+end subroutine PrBcTp
+
+subroutine PrBcXs(j,k,pval)
+
+    implicit none
+
+    integer, intent(in)     :: j,k
+    real,    intent(out)    :: pval
+
+    pval = 0.0
+
+end subroutine PrBcXs
+
+subroutine PrBcXe(j,k,pval)
+
+    implicit none
+
+    integer, intent(in)     :: j,k
+    real,    intent(out)    :: pval
+
+    pval = 0.0
+
+end subroutine PrBcXe
+
+subroutine PrBcYs(i,k,pval)
+
+    implicit none
+
+    integer, intent(in)     :: i,k
+    real,    intent(out)    :: pval
+
+    pval = 0.0
+
+end subroutine PrBcYs
+
+subroutine PrBcYe(i,k,pval)
+
+    implicit none
+
+    integer, intent(in)     :: i,k
+    real,    intent(out)    :: pval
+
+    pval = 0.0
+
+end subroutine PrBcYe
+
+subroutine PrBcZs(i,j,pval)
+
+    implicit none
+
+    integer, intent(in)     :: i,j
+    real,    intent(out)    :: pval
+
+    pval = 0.0
+
+end subroutine PrBcZs
+
+subroutine PrBcZe(i,j,pval)
+
+    implicit none
+
+    integer, intent(in)     :: i,j
+    real,    intent(out)    :: pval
+
+    pval = 0.0
+
+end subroutine PrBcZe

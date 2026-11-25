@@ -79,6 +79,8 @@ subroutine InitPressureSolver
     if (.not.allocated(iwrk)) allocate(iwrk(niwk))
     if (.not.allocated(rwrk)) allocate(rwrk(nrwk))
 
+    call PrBcTp(pcbcxs,pcbcxe,pcbcys,pcbcye,pcbczs,pcbcze)
+
     ! Initialize the eigenvector matrices (GEMM) and their eigenvalues
     call InitPoissonOperator(nxm,periodic(1),pcbcxs,pcbcxe,dxc(1:nxm),amphi,acphi,apphi,qfwx,qbwx,geix)
     call InitPoissonOperator(nym,periodic(2),pcbcys,pcbcye,dyc(1:nym),amphj,acphj,apphj,qfwy,qbwy,geiy)

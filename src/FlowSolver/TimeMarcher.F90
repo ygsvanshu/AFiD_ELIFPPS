@@ -31,6 +31,7 @@ subroutine TimeMarcher
         call CalcBoundaryConditionVX
         call CalcBoundaryConditionVY
         call CalcBoundaryConditionVZ
+        call CalcBoundaryConditionPC
 
         call ExplicitTermsVX
         call ExplicitTermsVY

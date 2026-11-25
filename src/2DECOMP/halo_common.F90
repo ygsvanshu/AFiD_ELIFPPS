@@ -35,7 +35,8 @@
       else
          tag_n = coord(1) + 1
       end if
-       icount = s3
+       ! Include z-halo planes so corners next to a z-wall are filled too
+       icount = s3 + 2*level
        ilength = level * s1
        ijump = s1*(s2+2*level)
 
@@ -44,19 +45,19 @@
             data_type, halo12, ierror)
        call MPI_TYPE_COMMIT(halo12, ierror)
        ! receive from south
-       call MPI_IRECV(in(xs,ys-level,zs), 1, halo12, &
+       call MPI_IRECV(in(xs,ys-level,zs-level), 1, halo12, &
             neighbour(1,4), tag_s, DECOMP_2D_COMM_CART_X, &
             requests(1), ierror)
        ! receive from north
-       call MPI_IRECV(in(xs,ye+1,zs), 1, halo12, &
+       call MPI_IRECV(in(xs,ye+1,zs-level), 1, halo12, &
             neighbour(1,3), tag_n, DECOMP_2D_COMM_CART_X, &
             requests(2), ierror)
        ! send to south
-       call MPI_ISSEND(in(xs,ys,zs), 1, halo12, &
+       call MPI_ISSEND(in(xs,ys,zs-level), 1, halo12, &
             neighbour(1,4), tag_s, DECOMP_2D_COMM_CART_X, &
             requests(3), ierror)
        ! send to north
-       call MPI_ISSEND(in(xs,ye-(level-1),zs), 1, halo12, &
+       call MPI_ISSEND(in(xs,ye-(level-1),zs-level), 1, halo12, &
             neighbour(1,3), tag_n, DECOMP_2D_COMM_CART_X, &
             requests(4), ierror)
        call MPI_WAITALL(4, requests, status, ierror)
